@@ -16,6 +16,8 @@ import {
   TAngleItem,
   TSideTires,
   TAxle,
+  TDamageChecklist,
+  TCtpatChecklist,
 } from "@/types/movement.types";
 import { EYardId } from "@/types/yard.types";
 import { enumMsg, trim } from "@/lib/utils/stringUtils";
@@ -184,7 +186,7 @@ const AnglesSchema = new Schema<TAnglePhotos>(
 );
 
 // Section 4: Damage checklist (explicit keys)
-const DamageChecklistSchema = new Schema(
+const DamageChecklistSchema = new Schema<TDamageChecklist>(
   {
     [EDamageChecklistItem.CRANK_SHAFT]: { type: Boolean, required: true },
     [EDamageChecklistItem.MUD_FLAPS]: { type: Boolean, required: true },
@@ -211,7 +213,7 @@ const DamageChecklistSchema = new Schema(
 );
 
 // Section 5: C-TPAT checklist (explicit keys)
-const CtpatSchema = new Schema(
+const CtpatSchema = new Schema<TCtpatChecklist>(
   {
     [ECtpatItem.TRACTOR_BUMPER]: { type: Boolean, required: true },
     [ECtpatItem.TRAILER_TIRES]: { type: Boolean, required: true },
