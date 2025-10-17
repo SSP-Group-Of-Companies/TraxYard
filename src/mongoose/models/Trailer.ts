@@ -1,9 +1,9 @@
 // src/models/Trailer.model.ts
 import { Schema, model, models, type Model, type HydratedDocument } from "mongoose";
 import type { TTrailer } from "@/types/Trailer.types";
-import { ETrailerStatus, ETrailerCondition, ETrailerLoadState } from "@/types/Trailer.types";
+import { ETrailerStatus, ETrailerCondition, ETrailerLoadState, ETrailerType } from "@/types/Trailer.types";
 import { EYardId } from "@/types/yard.types";
-import { enumMsg, trim, upperTrim } from "@/lib/utils/stringUtils";
+import { enumMsg, upperTrim } from "@/lib/utils/stringUtils";
 
 /** Mongoose doc type (hydrate-aware). Keep this ONLY in the model file. */
 export type TTrailerDoc = HydratedDocument<TTrailer>;
@@ -14,14 +14,13 @@ const TrailerSchema = new Schema<TTrailer>(
     trailerNumber: {
       type: String,
       required: [true, "Trailer number is required."],
-      trim: true,
       index: true,
       unique: true,
-      set: trim, // normalize on all write paths
+      trim: true, // required -> use trim: true (no set: trim)
     },
-    owner: { type: String, required: [true, "Owner is required."], trim: true, set: trim },
-    make: { type: String, required: [true, "Make is required."], trim: true, set: trim },
-    model: { type: String, required: [true, "Model is required."], trim: true, set: trim },
+    owner: { type: String, required: [true, "Owner is required."], trim: true },
+    make: { type: String, required: [true, "Make is required."], trim: true },
+    model: { type: String, required: [true, "Model is required."], trim: true },
     year: {
       type: Number,
       required: [true, "Year is required."],
@@ -30,7 +29,6 @@ const TrailerSchema = new Schema<TTrailer>(
     },
     vin: {
       type: String,
-      trim: true,
       unique: true,
       sparse: true, // allows multiple docs with missing vin
       set: (v: string | undefined | null) => {
@@ -42,32 +40,36 @@ const TrailerSchema = new Schema<TTrailer>(
       type: String,
       required: [true, "License plate is required."],
       trim: true,
-      set: upperTrim,
+      set: upperTrim, // keep case normalization
     },
     stateOrProvince: {
       type: String,
       required: [true, "License plate jurisdiction (state/province) is required."],
       trim: true,
-      set: upperTrim,
+      set: upperTrim, // keep case normalization
     },
     trailerType: {
       type: String,
       required: [true, "Trailer type is required."],
+      enum: {
+        values: Object.values(ETrailerType) as string[],
+        message: enumMsg("Trailer type", Object.values(ETrailerType) as string[]),
+      },
       trim: true,
-      set: trim,
+      set: upperTrim, // store enum values in canonical UPPER_SNAKE
     },
     safetyInspectionExpiryDate: {
       type: Date,
       required: [true, "Safety inspection expiry date is required."],
     },
-    comments: { type: String, trim: true, set: trim },
+    comments: { type: String, trim: true },
 
     // Live snapshot
     status: {
       type: String,
       required: [true, "Status is required."],
       enum: {
-        values: Object.values(ETrailerStatus) as unknown as string[],
+        values: Object.values(ETrailerStatus) as string[],
         message: enumMsg("Status", Object.values(ETrailerStatus) as string[]),
       },
     },
@@ -83,7 +85,6 @@ const TrailerSchema = new Schema<TTrailer>(
         },
         "yardId is required when status is IN.",
       ],
-      set: upperTrim,
     },
     lastMovementTs: {
       type: Date,
@@ -93,7 +94,7 @@ const TrailerSchema = new Schema<TTrailer>(
     loadState: {
       type: String,
       enum: {
-        values: Object.values(ETrailerLoadState) as unknown as string[],
+        values: Object.values(ETrailerLoadState) as string[],
         message: enumMsg("Load state", Object.values(ETrailerLoadState) as string[]),
       },
       default: ETrailerLoadState.UNKNOWN,
@@ -102,7 +103,7 @@ const TrailerSchema = new Schema<TTrailer>(
       type: String,
       required: [true, "Condition is required."],
       enum: {
-        values: Object.values(ETrailerCondition) as unknown as string[],
+        values: Object.values(ETrailerCondition) as string[],
         message: enumMsg("Condition", Object.values(ETrailerCondition) as string[]),
       },
       default: ETrailerCondition.ACTIVE,
@@ -121,7 +122,7 @@ const TrailerSchema = new Schema<TTrailer>(
   }
 );
 
-// Compound unique: licensePlate + stateOrProvince (now safely case-insensitive via setters)
+// Compound unique: licensePlate + stateOrProvince (case-insensitive via setters)
 TrailerSchema.index({ licensePlate: 1, stateOrProvince: 1 }, { unique: true, name: "uniq_plate_jurisdiction" });
 
 /** Minimal E11000 duplicate-key -> friendly message (optional). */

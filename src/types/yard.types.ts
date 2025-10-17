@@ -1,9 +1,9 @@
 import type { TAddress } from "./shared.types";
 
 export enum EYardId {
-  YARD_1 = "yard1",
-  YARD_2 = "yard2",
-  YARD_3 = "yard3",
+  YARD_1 = "YARD1",
+  YARD_2 = "YARD2",
+  YARD_3 = "YARD3",
 }
 
 export type TYard = {

@@ -9,8 +9,16 @@ export function trim(v?: string | null): string | undefined {
 
 /** Uppercase+trim; return undefined if empty/nullish. */
 export function upperTrim(v?: string | null): string | undefined {
+  if (v == null) return undefined;
   const t = trim(v);
   return t ? t.toUpperCase() : undefined;
+}
+
+/** LowerCase+trim; return undefined if empty/nullish. */
+export function lowerTrim(v?: string | null): string | undefined {
+  if (v == null) return undefined;
+  const t = trim(v);
+  return t ? t.toLowerCase() : undefined;
 }
 
 /** Helper for enum messages */

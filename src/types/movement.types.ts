@@ -34,7 +34,7 @@ export enum ETrailerBound {
 
 export type TTripInfo = {
   // shown in the UI Trip panel
-  safetyInspectionExpiry: string; // YYYY-MM-DD (captured here; server may sync to Trailer)
+  safetyInspectionExpiry: Date; // YYYY-MM-DD (captured here; server may sync to Trailer)
   customerName: string;
   destination: string;
   orderNumber: string;
@@ -108,7 +108,7 @@ export type TSideTires = {
 };
 
 export type TAxle = {
-  index: number; // 1..6 (UI validation/server guardrail)
+  axleNumber: number; // 1..6 (UI validation/server guardrail)
   type: EAxleType;
   left: TSideTires;
   right: TSideTires;
@@ -343,7 +343,7 @@ export const CTPAT_LABELS: Record<ECtpatItem, string> = {
 
 export type TMovement = {
   type: EMovementType;
-  trailerId: ObjectId; // reference to Trailer
+  trailer: ObjectId; // reference to Trailer
   yardId?: EYardId; // required for IN/OUT; optional for INSPECTION
   ts: Date;
 

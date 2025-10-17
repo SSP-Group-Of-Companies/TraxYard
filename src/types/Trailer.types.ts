@@ -18,15 +18,26 @@ export enum ETrailerLoadState {
   UNKNOWN = "UNKNOWN",
 }
 
-/**
- * Domain shape for a Trailer.
- * framework-agnostic (no Mongoose Document types).
- *
- * Note: `id` is optional here, because domain objects may be constructed
- */
+/** Common North American trailer classes */
+export enum ETrailerType {
+  DRY_VAN = "DRY_VAN",
+  REEFER = "REEFER",
+  FLATBED = "FLATBED",
+  STEP_DECK = "STEP_DECK",
+  DOUBLE_DROP = "DOUBLE_DROP", // aka Lowboy RGN
+  LOWBOY = "LOWBOY",
+  CONESTOGA = "CONESTOGA",
+  CURTAINSIDE = "CURTAINSIDE",
+  INTERMODAL_CHASSIS = "INTERMODAL_CHASSIS",
+  TANKER = "TANKER",
+  DUMP = "DUMP",
+  CAR_CARRIER = "CAR_CARRIER",
+  LIVESTOCK = "LIVESTOCK",
+}
+
 export type TTrailer = {
   // Core identity/spec
-  id?: string; // expose as a convenience for API/DTOs; optional in domain
+  id?: string;
   trailerNumber: string;
   owner: string;
   make: string;
@@ -35,7 +46,7 @@ export type TTrailer = {
   vin?: string;
   licensePlate: string;
   stateOrProvince: string;
-  trailerType: string;
+  trailerType: ETrailerType;
   safetyInspectionExpiryDate: Date;
   comments?: string;
 
