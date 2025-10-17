@@ -1,25 +1,40 @@
-import { parseISO, isValid as isValidDate } from "date-fns";
+import { addDays, format } from "date-fns";
+import { formatInTimeZone, fromZonedTime, toZonedTime } from "date-fns-tz";
 
-// Utility for formatting date to yyyy-MM-dd
-export const formatInputDate = (date: string | Date | undefined | null) => {
-  if (!date) return "";
-  const s = String(date);
+export const APP_TZ = "America/Toronto" as const;
 
-  // If already plain date (from DB) keep as-is
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-
-  // Parse ISO (e.g., 2023-04-09T00:00:00.000Z)
-  // Then format using UTC so we don't drift a day in local timezones
-  let d: Date;
-  try {
-    d = parseISO(s);
-  } catch {
-    return "";
-  }
-  if (!isValidDate(d)) return "";
-
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+export type TBusinessDay = {
+  dayKey: string; // 'YYYY-MM-DD' in APP_TZ
+  tz: typeof APP_TZ; // explicit for clarity/audit
+  dayStartUtc: Date; // UTC instant of local midnight (DST-safe)
 };
+
+export function toDayKey(instant: Date, tz: string = APP_TZ): string {
+  return formatInTimeZone(instant, tz, "yyyy-MM-dd");
+}
+
+export function dayKeyToStartUtc(dayKey: string, tz: string = APP_TZ): Date {
+  // Local midnight in tz → UTC instant
+  return fromZonedTime(`${dayKey}T00:00:00`, tz);
+}
+
+export function nowAsBusinessDay(): TBusinessDay {
+  const now = new Date();
+  const dayKey = toDayKey(now, APP_TZ);
+  const dayStartUtc = dayKeyToStartUtc(dayKey, APP_TZ);
+  return { dayKey, tz: APP_TZ, dayStartUtc };
+}
+
+export function dayKeyUtcRange(dayKey: string, tz: string = APP_TZ): { startUtc: Date; endUtc: Date } {
+  const startUtc = dayKeyToStartUtc(dayKey, tz);
+  // Convert to local, add 1 local day, then get next local midnight → UTC
+  const startLocal = toZonedTime(startUtc, tz);
+  const nextLocalMidnight = addDays(startLocal, 1);
+  const nextDayKey = format(nextLocalMidnight, "yyyy-MM-dd");
+  const endUtc = dayKeyToStartUtc(nextDayKey, tz);
+  return { startUtc, endUtc };
+}
+
+export function isDayKey(s: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(s);
+}

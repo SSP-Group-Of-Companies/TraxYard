@@ -1,73 +1,52 @@
 // src/lib/utils/auth/authUtils.ts
 import "server-only";
 import { cache } from "react";
-import { cookies } from "next/headers";
-import { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { getServerSession } from "next-auth";
 import type { IUser } from "@/types/user.types";
 import { AppError } from "@/lib/utils/apiResponse";
-import { AUTH_COOKIE_NAME, DISABLE_AUTH, NEXTAUTH_SECRET } from "@/config/env";
+import { DISABLE_AUTH } from "@/config/env";
+import { authOptions } from "@/lib/auth/authOptions";
 
-interface AppJWT {
-  userId?: string;
-  email?: string;
-  name?: string;
-  picture?: string;
-  // roles?: string[];
-}
+/** Memoized per-request: fetch the NextAuth session. */
+export const currentSession = cache(async () => getServerSession(authOptions));
 
-/**
- * Builds a minimal NextRequest carrying the cookie header,
- * so `getToken` can correctly parse the session token in App Router.
- */
-async function buildNextRequest(): Promise<NextRequest> {
-  const jar = await cookies();
-  const cookieHeader = jar
-    .getAll()
-    .map(({ name, value }) => `${name}=${value}`)
-    .join("; ");
-  const headers = new Headers();
-  if (cookieHeader) headers.set("cookie", cookieHeader);
-  return new NextRequest("https://internal.local/", { headers });
-}
-
-/**
- * Returns the currently authenticated user from the session token.
- * - Reads cookies via `cookies()`
- * - Uses `getToken` from NextAuth to verify/decode the JWT
- * - Returns a strongly typed `IUser` object or `null`
- */
+/** Return the current authenticated user as IUser, or null if unauthenticated. */
 export const currentUser = cache(async (): Promise<IUser | null> => {
-  const jar = await cookies();
-  const raw = jar.get(AUTH_COOKIE_NAME)?.value;
-  if (!raw) return null;
+  const session = await currentSession();
+  const u = session?.user; // typed via module augmentation (always has id if session exists)
+  if (!u?.id) return null;
 
-  const req = await buildNextRequest();
-  const token = (await getToken({
-    req,
-    secret: NEXTAUTH_SECRET,
-    cookieName: AUTH_COOKIE_NAME,
-  })) as AppJWT | null;
-
-  if (!token?.userId || !token?.email || !token?.name) return null;
-  const user = {
-    id: token.userId,
-    email: token.email,
-    name: token.name,
-    picture: token.picture,
+  return {
+    id: u.id,
+    email: u.email ?? null,
+    name: u.name ?? null,
+    picture: u.image ?? null,
   };
-  return user;
 });
 
 /**
- * Guard method: ensures a user is authenticated.
- * - Calls `currentUser`
- * - Throws `AppError(401)` if no valid user is found
- * - returns null user if DISABLE_AUTH env is set to true
+ * Guard: ensure a user is authenticated.
+ * - If DISABLE_AUTH is true, returns null (bypass).
+ * - Otherwise, throws 401 if no valid user.
+ * - Returns IUser when authenticated.
  */
 export const guard = cache(async (): Promise<IUser | null> => {
   if (DISABLE_AUTH) return null;
   const user = await currentUser();
   if (!user) throw new AppError(401, "Unauthenticated");
   return user;
+});
+
+/** Convenience: get just the authenticated user's id, or null. */
+export const currentUserId = cache(async (): Promise<string | null> => {
+  const user = await currentUser();
+  return user?.id ?? null;
+});
+
+/** Convenience: strict variant that throws if no user id. */
+export const requireUserId = cache(async (): Promise<string> => {
+  if (DISABLE_AUTH) return "dev-bypass";
+  const id = await currentUserId();
+  if (!id) throw new AppError(401, "Unauthenticated");
+  return id;
 });

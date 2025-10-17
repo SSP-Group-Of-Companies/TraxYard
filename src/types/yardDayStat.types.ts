@@ -1,10 +1,21 @@
+// src/types/stats.types.ts
 import { EYardId } from "./yard.types";
+import type { APP_TZ } from "@/lib/utils/dateUtils";
 
 export type TYardDayStat = {
   yardId: EYardId;
-  date: Date; // The specific day this stat is for
-  inCount: number; // Number of trailers that came IN on this day
-  outCount: number; // Number of trailers that went OUT on this day
-  inspectionCount: number; // Number of safety inspections conducted on this day
-  damageCount: number; // Number of trailers reported as DAMAGED on this day
+
+  /** 'YYYY-MM-DD' in APP_TZ (unique with yardId) */
+  dayKey: string;
+
+  /** Explicit TZ kept for clarity/audit; enforced to 'America/Toronto' in schema */
+  tz: typeof APP_TZ;
+
+  /** UTC instant of local midnight for that dayKey (DST-safe) */
+  dayStartUtc: Date;
+
+  inCount: number;
+  outCount: number;
+  inspectionCount: number;
+  damageCount: number;
 };
