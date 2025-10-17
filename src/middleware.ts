@@ -2,7 +2,7 @@ import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { AUTH_COOKIE_NAME, NEXTAUTH_SECRET, NEXT_PUBLIC_PORTAL_BASE_URL, DISABLE_AUTH } from "./config/env";
-import { resolveOriginFromRequest } from "./lib/auth/utils/urlHelper";
+import { resolveOriginFromRequest } from "./lib/utils/urlHelper";
 
 export async function middleware(req: NextRequest) {
   if (DISABLE_AUTH) return NextResponse.next();

@@ -1,5 +1,5 @@
 import { AUTH_COOKIE_DOMAIN, AUTH_COOKIE_NAME } from "@/config/env";
-import { resolveBaseUrl } from "@/lib/auth/utils/urlHelper.server";
+import { resolveBaseUrl } from "@/lib/utils/urlHelper.server";
 import { NextResponse } from "next/server";
 
 const LOGIN_PATH = "/login";
@@ -28,7 +28,7 @@ function buildDeleteHeaders() {
 
 export async function GET() {
   // Always trust PUBLIC_ORIGIN
-  const origin = resolveBaseUrl();
+  const origin = await resolveBaseUrl();
   const redirectTo = `${origin}${LOGIN_PATH}`;
 
   const res = NextResponse.redirect(redirectTo, { status: 303 });

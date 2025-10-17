@@ -1,5 +1,3 @@
-// src/types/shared.types.ts
-
 /* ───────────────────────── New generic file types ───────────────────────── */
 
 export enum EFileMimeType {
@@ -25,3 +23,26 @@ export type IFileAsset = {
 
 /** Runtime helper */
 export const isImageMime = (mt?: string) => typeof mt === "string" && mt.toLowerCase().startsWith("image/");
+
+/* ───────────────────────── Location (shared) ───────────────────────── */
+
+export type TAddress = {
+  line1: string;
+  line2?: string;
+  city: string;
+  province: string; // e.g., "ON"
+  postalCode: string;
+  latitude?: number;
+  longitude?: number;
+};
+
+/* ───────────────────────── Common primitives ───────────────────────── */
+
+export type TObjectId = import("mongoose").Types.ObjectId;
+export type TLocalDate = string; // "YYYY-MM-DD" (America/Toronto local day)
+
+export type TUserRef = {
+  userId: string;
+  displayName?: string;
+  email?: string;
+};
