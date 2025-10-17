@@ -1,6 +1,6 @@
 // src/types/Movement.types.ts
 
-import { Document, ObjectId } from "mongoose";
+import { ObjectId } from "mongoose";
 import { IFileAsset } from "./shared.types";
 import { EYardId } from "./yard.types";
 
@@ -372,6 +372,3 @@ export type TMovement = {
   // Idempotency to prevent double-click duplicates
   requestId: string;
 };
-
-/** Mongoose document type for Movement */
-export type TMovementDoc = Document & TMovement;

@@ -3,24 +3,10 @@ import { Schema, model, models, type Model, type HydratedDocument } from "mongoo
 import type { TTrailer } from "@/types/Trailer.types";
 import { ETrailerStatus, ETrailerCondition, ETrailerLoadState } from "@/types/Trailer.types";
 import { EYardId } from "@/types/yard.types";
+import { enumMsg, trim, upperTrim } from "@/lib/utils/stringUtils";
 
 /** Mongoose doc type (hydrate-aware). Keep this ONLY in the model file. */
 export type TTrailerDoc = HydratedDocument<TTrailer>;
-
-/** Helper for enum messages */
-const enumMsg = (label: string, values: string[]) => `${label} must be one of: ${values.join(", ")}`;
-
-/* ───────────────────────── Normalizers via setters ───────────────────────── */
-const upperTrim = (v?: string | null) => {
-  if (v == null) return v as any;
-  const t = String(v).trim();
-  return t ? t.toUpperCase() : undefined; // undefined helps with unique+sparse when empty
-};
-const trimOnly = (v?: string | null) => {
-  if (v == null) return v as any;
-  const t = String(v).trim();
-  return t || undefined;
-};
 
 const TrailerSchema = new Schema<TTrailer>(
   {
@@ -31,11 +17,11 @@ const TrailerSchema = new Schema<TTrailer>(
       trim: true,
       index: true,
       unique: true,
-      set: trimOnly, // normalize on all write paths
+      set: trim, // normalize on all write paths
     },
-    owner: { type: String, required: [true, "Owner is required."], trim: true, set: trimOnly },
-    make: { type: String, required: [true, "Make is required."], trim: true, set: trimOnly },
-    model: { type: String, required: [true, "Model is required."], trim: true, set: trimOnly },
+    owner: { type: String, required: [true, "Owner is required."], trim: true, set: trim },
+    make: { type: String, required: [true, "Make is required."], trim: true, set: trim },
+    model: { type: String, required: [true, "Model is required."], trim: true, set: trim },
     year: {
       type: Number,
       required: [true, "Year is required."],
@@ -68,13 +54,13 @@ const TrailerSchema = new Schema<TTrailer>(
       type: String,
       required: [true, "Trailer type is required."],
       trim: true,
-      set: trimOnly,
+      set: trim,
     },
     safetyInspectionExpiryDate: {
       type: Date,
       required: [true, "Safety inspection expiry date is required."],
     },
-    comments: { type: String, trim: true, set: trimOnly },
+    comments: { type: String, trim: true, set: trim },
 
     // Live snapshot
     status: {
