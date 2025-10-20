@@ -1,4 +1,3 @@
-// src/types/Trailer.types.ts
 import { EYardId } from "./yard.types";
 
 export enum ETrailerStatus {
@@ -53,7 +52,10 @@ export type TTrailer = {
   // Live snapshot
   status: ETrailerStatus;
   yardId?: EYardId;
-  lastMovementTs: Date;
+
+  /** Latest IN/OUT movement timestamp (excludes INSPECTION). */
+  lastMoveIoTs?: Date;
+
   loadState: ETrailerLoadState;
   condition: ETrailerCondition;
   totalMovements: number;

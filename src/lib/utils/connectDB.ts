@@ -1,3 +1,4 @@
+// src/lib/utils/connectDB.ts
 import { MONGO_URI } from "@/config/env";
 import mongoose from "mongoose";
 

@@ -1,9 +1,9 @@
-// src/models/Trailer.model.ts
 import { Schema, model, models, type Model, type HydratedDocument } from "mongoose";
 import type { TTrailer } from "@/types/Trailer.types";
 import { ETrailerStatus, ETrailerCondition, ETrailerLoadState, ETrailerType } from "@/types/Trailer.types";
 import { EYardId } from "@/types/yard.types";
 import { enumMsg, upperTrim } from "@/lib/utils/stringUtils";
+import { EMovementType } from "@/types/movement.types";
 
 /** Mongoose doc type (hydrate-aware). Keep this ONLY in the model file. */
 export type TTrailerDoc = HydratedDocument<TTrailer>;
@@ -16,7 +16,7 @@ const TrailerSchema = new Schema<TTrailer>(
       required: [true, "Trailer number is required."],
       index: true,
       unique: true,
-      trim: true, // required -> use trim: true (no set: trim)
+      trim: true,
     },
     owner: { type: String, required: [true, "Owner is required."], trim: true },
     make: { type: String, required: [true, "Make is required."], trim: true },
@@ -86,11 +86,14 @@ const TrailerSchema = new Schema<TTrailer>(
         "yardId is required when status is IN.",
       ],
     },
-    lastMovementTs: {
+
+    /** Latest IN/OUT movement timestamp (excludes INSPECTION). */
+    lastMoveIoTs: {
       type: Date,
-      required: [true, "lastMovementTs is required."],
-      default: Date.now,
+      index: true,
+      // not required; set when the first IN/OUT happens
     },
+
     loadState: {
       type: String,
       enum: {
@@ -124,6 +127,16 @@ const TrailerSchema = new Schema<TTrailer>(
 
 // Compound unique: licensePlate + stateOrProvince (case-insensitive via setters)
 TrailerSchema.index({ licensePlate: 1, stateOrProvince: 1 }, { unique: true, name: "uniq_plate_jurisdiction" });
+
+/** Virtual: latest IN/OUT movement (excludes INSPECTION). */
+TrailerSchema.virtual("lastMoveIo", {
+  ref: "Movement",
+  localField: "_id",
+  foreignField: "trailer",
+  match: { type: { $in: [EMovementType.IN, EMovementType.OUT] } },
+  options: { sort: { ts: -1 }, limit: 1 },
+  justOne: true,
+});
 
 /** Minimal E11000 duplicate-key -> friendly message (optional). */
 function duplicateMessage(err: any): string | null {
