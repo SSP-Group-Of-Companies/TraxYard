@@ -96,12 +96,12 @@ import { EYardId } from "@/types/yard.types";
 import { ETrailerStatus } from "@/types/Trailer.types";
 import { getOpenMeteoCurrent } from "@/lib/utils/weather/openMeteo";
 
-export async function GET(_: NextRequest, ctx: { params: Promise<{ yardId: EYardId }> }) {
+export async function GET(_: NextRequest, { params }: { params: Promise<{ yardId: EYardId }> }) {
   try {
     await guard();
     await connectDB();
 
-    const { yardId } = await ctx.params;
+    const { yardId } = await params;
     const yard = yards.find((y) => y.id === yardId);
     if (!yard) throw new AppError(404, `Unknown yardId: ${yardId}`);
 
