@@ -20,18 +20,10 @@ export enum ETrailerLoadState {
 /** Common North American trailer classes */
 export enum ETrailerType {
   DRY_VAN = "DRY_VAN",
-  REEFER = "REEFER",
   FLATBED = "FLATBED",
+  FLATBED_ROLL_TITE = "FLATBED_ROLL_TITE",
   STEP_DECK = "STEP_DECK",
-  DOUBLE_DROP = "DOUBLE_DROP", // aka Lowboy RGN
-  LOWBOY = "LOWBOY",
-  CONESTOGA = "CONESTOGA",
-  CURTAINSIDE = "CURTAINSIDE",
-  INTERMODAL_CHASSIS = "INTERMODAL_CHASSIS",
-  TANKER = "TANKER",
-  DUMP = "DUMP",
-  CAR_CARRIER = "CAR_CARRIER",
-  LIVESTOCK = "LIVESTOCK",
+  STEP_DECK_ROLL_TITE = "STEP_DECK_ROLL_TITE",
 }
 
 export type TTrailer = {

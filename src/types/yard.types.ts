@@ -1,3 +1,4 @@
+// src/types/yard.types.ts
 import type { TAddress } from "./shared.types";
 
 export enum EYardId {

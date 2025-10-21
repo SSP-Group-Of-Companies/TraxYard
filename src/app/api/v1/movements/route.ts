@@ -1,15 +1,157 @@
 // src/app/api/v1/movements/route.ts
+/**
+ * POST /api/v1/movements
+ *
+ * Purpose
+ * -------
+ * Create a new trailer movement (IN, OUT, or INSPECTION) with photos/docs.
+ * Frontend submits a fully-validated payload including sectioned data and
+ * TEMP S3 file keys. The API finalizes files and returns the saved movement
+ * plus the updated trailer snapshot.
+ *
+ * Auth
+ * ----
+ * - Requires a signed-in user (unless auth is globally disabled).
+ *
+ * Idempotency
+ * -----------
+ * - Pass a unique `requestId` (string). Re-sending the same `requestId`
+ *   returns the already-created movement (`idempotent: true`).
+ *
+ * Content-Type
+ * ------------
+ * - application/json
+ *
+ * Required Fields (by movement type)
+ * ----------------------------------
+ * Common:
+ *   - requestId: string (unique per submission)
+ *   - type: "IN" | "OUT" | "INSPECTION"
+ *   - carrier: { carrierName: string, driverName: string, truckNumber?: string }
+ *   - trip: {
+ *       safetyInspectionExpiry: string|Date,
+ *       customerName: string,
+ *       destination: string,
+ *       orderNumber: string,
+ *       isLoaded: boolean,
+ *       trailerBound: "SOUTH_BOUND" | "NORTH_BOUND" | "LOCAL"
+ *     }
+ *   - fines: { lights: boolean, tires: boolean, plates: boolean, mudFlaps: boolean, hinges: boolean, notes?: string }
+ *   - documentInfo: { notes?: string, attachments: FileAsset[] (TEMP keys ok) }
+ *   - extras:       { notes?: string, attachments: FileAsset[] (TEMP keys ok) }
+ *   - angles:       all 8 required angle photos present as FileAsset (TEMP keys ok)
+ *   - axles:        array length 2..6; each with axleNumber (1..6), type ("SINGLE"|"DUAL"),
+ *                   left/right.outer required; inner required if type=DUAL; each tire has
+ *                   { brand, psi 0..200, condition "ORI"|"RE", photo (TEMP key ok) }
+ *   - damageChecklist: object (shape defined client-side; presence required)
+ *   - damages?:     array of { location: string, type: string, newDamage: boolean,
+ *                   photo: FileAsset (TEMP key ok), comment?: string }
+ *   - ctpat:        object (presence required)
+ *
+ * For type = "IN" or "OUT":
+ *   - yardId: "YARD1" | "YARD2" | "YARD3" (required)
+ *
+ * Trailer Reference
+ * -----------------
+ * - Either:
+ *     - trailerId: string (existing trailer), OR
+ *     - trailer: { owner, make, model?, year, vin?, licensePlate, stateOrProvince,
+ *                  trailerType, safetyInspectionExpiryDate, comments? } to create a new trailer on the fly.
+ *   Notes:
+ *     - New trailers start with status OUT by default; they are still allowed to perform the first IN/OUT.
+ *
+ * File Handling
+ * -------------
+ * - Frontend may upload to TEMP S3 keys before calling this route.
+ * - Send TEMP keys in FileAsset.s3Key fields.
+ * - The API finalizes all files to: submissions/movements/{movementId}/...
+ * - If the request fails, any finalized files are deleted by the API.
+ *
+ * Business Rules (high level)
+ * ---------------------------
+ * - IN: prevented only if an existing trailer is already IN. Enforces yard capacity.
+ * - OUT: prevented only if an existing trailer is already OUT.
+ * - INSPECTION: always allowed; does not change IN/OUT status.
+ * - Trailer snapshot is updated from this movement (status, yardId, loadState, counters).
+ * - Daily yard stats increment (IN/OUT/INSPECTION), and +1 damageCount if any `damages[].newDamage === true`.
+ *
+ * Success Response (200)
+ * ----------------------
+ * {
+ *   ok: true,
+ *   message: "Movement created successfully",
+ *   data: {
+ *     movement: <MovementDocument with FINALIZED file keys>,
+ *     trailer:  <Updated trailer snapshot>,
+ *     referencedTempKeys: string[] // FYI/debugging only
+ *   }
+ * }
+ *
+ * Idempotent Replay (200)
+ * -----------------------
+ * If `requestId` already used:
+ * {
+ *   ok: true,
+ *   message: "Idempotent replay: movement already exists.",
+ *   data: { movement: <existing>, idempotent: true }
+ * }
+ *
+ * Common Error Responses
+ * ----------------------
+ * 400  Validation error (missing/invalid fields, malformed file assets, etc.)
+ * 404  Trailer not found (when trailerId provided but missing)
+ * 409  Business rule violation:
+ *       - "Trailer is already IN. Next movement must be OUT."
+ *       - "Trailer is already OUT. Next movement must be IN."
+ *       - "Yard capacity reached. Cannot move IN another trailer."
+ * 500  Unexpected server error
+ *
+ * Example Minimal Payloads
+ * ------------------------
+ * // IN (existing trailer)
+ * {
+ *   "requestId": "req_12345",
+ *   "type": "IN",
+ *   "yardId": "YARD2",
+ *   "trailerId": "<existing-id>",
+ *   "carrier": { "carrierName": "Acme", "driverName": "Jane Doe", "truckNumber": "T-778" },
+ *   "trip": {
+ *     "safetyInspectionExpiry": "2026-01-15",
+ *     "customerName": "Shipper A",
+ *     "destination": "Toronto",
+ *     "orderNumber": "SO-8891",
+ *     "isLoaded": true,
+ *     "trailerBound": "NORTH_BOUND"
+ *   },
+ *   "fines": { "lights": false, "tires": false, "plates": false, "mudFlaps": false, "hinges": false, "notes": "" },
+ *   "documentInfo": { "notes": "", "attachments": [ { "s3Key": "temp/...", "mimeType": "image/jpeg" } ] },
+ *   "extras":       { "notes": "", "attachments": [] },
+ *   "angles": { ...8 angle objects with { photo: { s3Key: "temp/...", mimeType: "..." } } ... },
+ *   "axles": [ ...2..6 axle entries with tire specs & photos... ],
+ *   "damageChecklist": { ... },
+ *   "damages": [ { "location": "LEFT_FRONT", "type": "SCRATCH", "newDamage": true,
+ *                  "photo": { "s3Key": "temp/...", "mimeType": "image/jpeg" }, "comment": "" } ],
+ *   "ctpat": { ... }
+ * }
+ *
+ * Notes for Frontend
+ * ------------------
+ * - Always send every required angle photo and tire photo per rules above.
+ * - Always include `requestId` to make retries safe.
+ * - For new trailers, provide the minimal trailer object (see Trailer Reference).
+ * - On success, use the returned `movement` for all FINAL S3 keys to display images.
+ */
 import { NextRequest } from "next/server";
 import connectDB from "@/lib/utils/connectDB";
 import { successResponse, errorResponse, AppError } from "@/lib/utils/apiResponse";
-import { guard, requireUserId } from "@/lib/auth/authUtils";
+import { guard } from "@/lib/auth/authUtils";
 import { parseJsonBody } from "@/lib/utils/reqParser";
 
 import { Movement } from "@/mongoose/models/Movement";
 import { Trailer } from "@/mongoose/models/Trailer";
 import { YardDayStat } from "@/mongoose/models/YardDayStat";
 
-import { yards } from "@/constants/yards";
+import { yards } from "@/data/yards";
 import { APP_TZ, dayKeyToStartUtc, toDayKey } from "@/lib/utils/dateUtils";
 
 import { isTempKey, makeEntityFinalPrefix, deleteS3Objects, finalizeAssetWithCache, finalizeVectorWithCache } from "@/lib/utils/s3Helper";
@@ -162,25 +304,33 @@ async function finalizeAllMovementAssets(movementId: string, payload: TMovement,
   return { updatedMovement: clone, movedKeys };
 }
 
+/* ───────────────────────── YardDayStat upsert + rollback ───────────────────────── */
+
+type TStatInc = Partial<Record<"inCount" | "outCount" | "inspectionCount" | "damageCount", number>>;
+type TStatApplied = { yardId: EYardId; dayKey: string; inc: TStatInc };
+
 /**
- * Update or create YardDayStat for the day/yard.
+ * Update or create YardDayStat for the day/yard, and return what we changed
+ * so we can roll it back if the request later fails.
  * For INSPECTION: only increment when yardId is provided (optional by spec).
  */
-async function upsertStatsForMovement(m: TMovement) {
+async function upsertStatsForMovement(m: TMovement): Promise<TStatApplied | null> {
   const yardId: EYardId | undefined = m.type === EMovementType.INSPECTION ? (m.yardId as EYardId | undefined) : (m.yardId as EYardId);
 
-  if (!yardId) return;
+  if (!yardId) return null;
 
   const ts = m.ts ? new Date(m.ts) : new Date();
   const dayKey = toDayKey(ts, APP_TZ);
   const exactDayStartUtc: Date = dayKeyToStartUtc(dayKey, APP_TZ);
 
-  const inc: Partial<Record<"inCount" | "outCount" | "inspectionCount" | "damageCount", number>> = {};
+  const inc: TStatInc = {};
   if (m.type === EMovementType.IN) inc.inCount = 1;
   else if (m.type === EMovementType.OUT) inc.outCount = 1;
   else if (m.type === EMovementType.INSPECTION) inc.inspectionCount = 1;
 
   if (hasNewDamage(m.damages)) inc.damageCount = 1;
+
+  if (Object.keys(inc).length === 0) return null;
 
   await YardDayStat.findOneAndUpdate(
     { yardId, dayKey },
@@ -190,6 +340,22 @@ async function upsertStatsForMovement(m: TMovement) {
     },
     { upsert: true, new: true }
   );
+
+  return { yardId, dayKey, inc };
+}
+
+/** Apply the inverse of a previous stats upsert. Safe to call even if the doc was modified by others. */
+async function rollbackYardStats(applied: TStatApplied) {
+  const dec: TStatInc = {};
+  if (applied.inc.inCount) dec.inCount = -applied.inc.inCount;
+  if (applied.inc.outCount) dec.outCount = -applied.inc.outCount;
+  if (applied.inc.inspectionCount) dec.inspectionCount = -applied.inc.inspectionCount;
+  if (applied.inc.damageCount) dec.damageCount = -applied.inc.damageCount;
+
+  // Only issue the update if there is anything to decrement
+  if (Object.keys(dec).length === 0) return;
+
+  await YardDayStat.updateOne({ yardId: applied.yardId, dayKey: applied.dayKey }, { $inc: dec });
 }
 
 /* ───────────────────────── Route ───────────────────────── */
@@ -198,13 +364,15 @@ export async function POST(req: NextRequest) {
   let createdTrailerId: string | null = null;
   let createdMovementId: string | null = null;
 
+  // Track any YardDayStat change so we can undo it on failure.
+  let statsApplied: TStatApplied | null = null;
+
   // FIX #1: collector of final keys, filled eagerly inside finalizer
   const movedFinalKeys: string[] = [];
 
   try {
     await connectDB();
-    await guard(); // will throw 401 if auth is required and invalid
-    const userId = await requireUserId(); // useful to stamp actor.id if missing
+    const user = await guard(); // may be null if DISABLE_AUTH
 
     const body = await parseJsonBody<any>(req);
 
@@ -275,36 +443,38 @@ export async function POST(req: NextRequest) {
     assert(trailerDoc, "Trailer not found", 404);
 
     // Capacity & logical flow checks
+    const isNewTrailer = !!createdTrailerId;
+
     if (body.type === EMovementType.IN) {
-      // If existing trailer and already IN -> block (next valid move is OUT)
-      if (!createdTrailerId && trailerDoc.status === ETrailerStatus.IN) {
+      // Block only if it's an existing trailer already IN
+      if (!isNewTrailer && trailerDoc.status === ETrailerStatus.IN) {
         throw new AppError(409, "Trailer is already IN. Next movement must be OUT.");
       }
 
-      // Capacity check for the yard
+      // Capacity check for the yard (still applies even for new trailers)
       const yardCap = yardCapacityOf(body.yardId as EYardId)!;
       const currentInCount = await Trailer.countDocuments({ status: ETrailerStatus.IN, yardId: body.yardId });
       if (currentInCount >= yardCap) {
         throw new AppError(409, "Yard capacity reached. Cannot move IN another trailer.");
       }
     } else if (body.type === EMovementType.OUT) {
-      // If trailer already OUT -> block
-      if (trailerDoc.status === ETrailerStatus.OUT) {
+      // Block only if it's an existing trailer already OUT
+      if (!isNewTrailer && trailerDoc.status === ETrailerStatus.OUT) {
         throw new AppError(409, "Trailer is already OUT. Next movement must be IN.");
       }
     }
     // INSPECTION: always allowed (does not affect in/out)
 
-    // Build a movement payload (allow provided ts; otherwise default handled by schema)
+    // Build a movement payload
     const movementInput: TMovement = {
       ...body,
       trailer: trailerDoc._id,
       actor: {
-        id: body?.actor?.id ?? userId,
-        displayName: body?.actor?.displayName ?? "System",
-        email: body?.actor?.email ?? undefined,
+        id: user?.id,
+        displayName: user?.name ?? "Unknown User",
+        email: user?.email ?? undefined,
       },
-      ts: body?.ts ? new Date(body.ts) : new Date(),
+      ts: new Date(),
     };
 
     // Keep a list of TEMP keys referenced (used for cleanup on fail if we had to)
@@ -316,7 +486,7 @@ export async function POST(req: NextRequest) {
 
     // 2) Finalize all files under submissions/movements/{id}/...
     {
-      // FIX #1 + #2: pass collector so cleanup can delete any finals even if we throw mid-way
+      // Pass collector so cleanup can delete any finals even if we throw mid-way
       const { updatedMovement } = await finalizeAllMovementAssets(createdMovementId, movementInput, movedFinalKeys);
 
       // 3) Update movement with finalized file assets (single pass)
@@ -360,8 +530,8 @@ export async function POST(req: NextRequest) {
       await trailerDoc.save();
     }
 
-    // 5) Update yard-day stats
-    await upsertStatsForMovement({
+    // 5) Update yard-day stats (and remember what we changed for rollback)
+    statsApplied = await upsertStatsForMovement({
       ...movementInput,
       yardId: body.yardId,
     });
@@ -386,6 +556,15 @@ export async function POST(req: NextRequest) {
       if (createdTrailerId) await Trailer.findByIdAndDelete(createdTrailerId);
     } catch (e) {
       console.warn("Failed to delete Trailer during cleanup:", createdTrailerId, e);
+    }
+
+    // Roll back YardDayStat change if we applied one
+    if (statsApplied) {
+      try {
+        await rollbackYardStats(statsApplied);
+      } catch (e) {
+        console.warn("Failed to roll back YardDayStat during cleanup:", statsApplied, e);
+      }
     }
 
     // Cleanup any FINAL S3 objects we created during this request
