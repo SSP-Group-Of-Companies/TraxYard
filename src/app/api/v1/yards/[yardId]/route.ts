@@ -92,11 +92,10 @@ import { YardDayStat } from "@/mongoose/models/YardDayStat";
 
 import { yards } from "@/data/yards";
 import { APP_TZ, toDayKey } from "@/lib/utils/dateUtils";
-import { EYardId } from "@/types/yard.types";
 import { ETrailerStatus } from "@/types/Trailer.types";
 import { getOpenMeteoCurrent } from "@/lib/utils/weather/openMeteo";
 
-export async function GET(_: NextRequest, { params }: { params: Promise<{ yardId: EYardId }> }) {
+export async function GET(_: NextRequest, { params }: { params: Promise<{ yardId: string }> }) {
   try {
     await guard();
     await connectDB();
