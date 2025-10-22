@@ -1,6 +1,6 @@
 // src/app/api/v1/guard/movements/route.ts
 /**
- * POST /api/v1/movements
+ * POST /api/v1/guard/movements
  *
  * Purpose
  * -------
@@ -576,7 +576,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    console.error("POST /api/v1/movements error:", error);
+    console.error("POST /api/v1/guard/movements error:", error);
     return errorResponse(error);
   }
 }

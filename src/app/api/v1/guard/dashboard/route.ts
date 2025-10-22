@@ -4,7 +4,7 @@
  *  GUARD · YARD DASHBOARD DATA API
  * --------------------------------------------------------------------------
  *  Method: GET
- *  Path:   /api/v1/dashboard
+ *  Path:   /api/v1/guard/dashboard
  *
  *  Purpose:
  *    Provide all data required for the Guard-side Yard Dashboard view.
@@ -17,8 +17,8 @@
  *    - yardId (required): one of EYardId (e.g., YARD1, YARD2, YARD3)
  *
  *  Examples:
- *    GET /api/v1/dashboard?yardId=YARD1
- *    GET /api/v1/dashboard?yardId=YARD2
+ *    GET /api/v1/guard/dashboard?yardId=YARD1
+ *    GET /api/v1/guard/dashboard?yardId=YARD2
  *
  *  Response (200 OK):
  *    {

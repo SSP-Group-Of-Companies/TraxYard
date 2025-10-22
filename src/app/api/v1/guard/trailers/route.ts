@@ -1,6 +1,6 @@
 // src/app/api/v1/guard/trailers/route.ts
 /**
- * GET /api/v1/trailers
+ * GET /api/v1/guard/trailers
  * -----------------------------------------------------------------------------
  * Purpose
  *   Return ONLY trailers that are currently IN a specific yard.
@@ -35,11 +35,11 @@
  *   }
  *
  * Examples
- *   /api/v1/trailers?yardId=YARD2
- *   /api/v1/trailers?yardId=YARD2&q=TRLR-1002          // trailerId (trailerNumber)
- *   /api/v1/trailers?yardId=YARD2&q=TRK-102            // truckNumber (from lastMoveIo)
- *   /api/v1/trailers?yardId=YARD2&trailerType=FLATBED_ROLL_TITE&loadState=LOADED
- *   /api/v1/trailers?yardId=YARD2&expiredOnly=true&sortBy=licensePlate&sortDir=asc
+ *   /api/v1/guard/trailers?yardId=YARD2
+ *   /api/v1/guard/trailers?yardId=YARD2&q=TRLR-1002          // trailerId (trailerNumber)
+ *   /api/v1/guard/trailers?yardId=YARD2&q=TRK-102            // truckNumber (from lastMoveIo)
+ *   /api/v1/guard/trailers?yardId=YARD2&trailerType=FLATBED_ROLL_TITE&loadState=LOADED
+ *   /api/v1/guard/trailers?yardId=YARD2&expiredOnly=true&sortBy=licensePlate&sortDir=asc
  */
 
 import { NextRequest } from "next/server";
