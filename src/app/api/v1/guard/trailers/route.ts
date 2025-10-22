@@ -1,4 +1,4 @@
-// src/app/api/v1/trailers/route.ts
+// src/app/api/v1/guard/trailers/route.ts
 /**
  * GET /api/v1/trailers
  * -----------------------------------------------------------------------------

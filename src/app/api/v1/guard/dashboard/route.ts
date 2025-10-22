@@ -1,4 +1,4 @@
-// src/app/api/v1/dashboard/route.ts
+// src/app/api/v1/guard/dashboard/route.ts
 /**
  * --------------------------------------------------------------------------
  *  GUARD · YARD DASHBOARD DATA API
