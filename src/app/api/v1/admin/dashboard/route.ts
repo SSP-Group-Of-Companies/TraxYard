@@ -62,11 +62,15 @@ import { EMovementType } from "@/types/movement.types";
 import { getOpenMeteoCurrent } from "@/lib/utils/weather/openMeteo";
 
 import { parseIntClamp, parseEnumParam } from "@/lib/utils/queryUtils";
+import { fromZonedTime } from "date-fns-tz";
+import { addDays, startOfDay } from "date-fns";
 
+/** Shift a YYYY-MM-DD dayKey by N calendar days in APP_TZ (no DST drift). */
 function shiftDayKey(dayKey: string, days: number): string {
-  const start = dayKeyToStartUtc(dayKey);
-  const shifted = new Date(start.getTime() + days * 24 * 60 * 60 * 1000);
-  return toDayKey(shifted, APP_TZ);
+  // Build a local (APP_TZ) midnight for the given dayKey, add calendar days in local time,
+  // then re-key back to YYYY-MM-DD in APP_TZ.
+  const shiftedLocalStartUtc = fromZonedTime(startOfDay(addDays(new Date(`${dayKey}T00:00:00`), days)), APP_TZ);
+  return toDayKey(shiftedLocalStartUtc, APP_TZ);
 }
 
 export async function GET(req: NextRequest) {
