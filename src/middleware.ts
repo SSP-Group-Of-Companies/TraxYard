@@ -10,6 +10,7 @@ export async function middleware(req: NextRequest) {
   const { nextUrl } = req;
   const pathname = nextUrl.pathname;
   const isDashboard = pathname.startsWith("/dashboard");
+  const isGuard = pathname.startsWith("/guard");
   const isAuthPage = pathname === "/login"; // local guard login
 
   const token = await getToken({
@@ -30,6 +31,15 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // ── Guard side (/guard): require authentication
+  if (isGuard) {
+    if (!token) {
+      const loginUrl = new URL("/login", publicOrigin);
+      return NextResponse.redirect(loginUrl);
+    }
+    return NextResponse.next();
+  }
+
   // ── Guards side (everything else under /)
   if (!token && !isAuthPage) {
     const loginUrl = new URL("/login", publicOrigin);
@@ -37,12 +47,12 @@ export async function middleware(req: NextRequest) {
   }
 
   if (token && isAuthPage) {
-    return NextResponse.redirect(new URL("/", publicOrigin));
+    return NextResponse.redirect(new URL("/guard", publicOrigin));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/", "/login", "/dashboard/:path*"],
+  matcher: ["/", "/login", "/guard/:path*", "/dashboard/:path*"],
 };
