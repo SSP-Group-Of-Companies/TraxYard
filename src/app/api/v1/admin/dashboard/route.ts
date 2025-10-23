@@ -61,18 +61,16 @@ import { EYardId } from "@/types/yard.types";
 import { EMovementType } from "@/types/movement.types";
 import { getOpenMeteoCurrent } from "@/lib/utils/weather/openMeteo";
 
-/** safe int parsing with clamp */
-function parseIntClamp(v: string | null, def: number, min: number, max: number) {
-  const n = Number.parseInt(v ?? "", 10);
-  if (Number.isFinite(n)) return Math.max(min, Math.min(max, n));
-  return def;
-}
+import { parseIntClamp, parseEnumParam } from "@/lib/utils/queryUtils";
+import { fromZonedTime } from "date-fns-tz";
+import { addDays, startOfDay } from "date-fns";
 
-/** add N calendar days to a dayKey in APP_TZ and return a new dayKey */
+/** Shift a YYYY-MM-DD dayKey by N calendar days in APP_TZ (no DST drift). */
 function shiftDayKey(dayKey: string, days: number): string {
-  const start = dayKeyToStartUtc(dayKey);
-  const shifted = new Date(start.getTime() + days * 24 * 60 * 60 * 1000);
-  return toDayKey(shifted, APP_TZ);
+  // Build a local (APP_TZ) midnight for the given dayKey, add calendar days in local time,
+  // then re-key back to YYYY-MM-DD in APP_TZ.
+  const shiftedLocalStartUtc = fromZonedTime(startOfDay(addDays(new Date(`${dayKey}T00:00:00`), days)), APP_TZ);
+  return toDayKey(shiftedLocalStartUtc, APP_TZ);
 }
 
 export async function GET(req: NextRequest) {
@@ -81,10 +79,8 @@ export async function GET(req: NextRequest) {
     await connectDB();
 
     const url = new URL(req.url);
-    const yardId = url.searchParams.get("yardId") as EYardId | null;
-    if (!yardId || !Object.values(EYardId).includes(yardId)) {
-      throw new AppError(400, "yardId is required and must be one of EYardId.");
-    }
+    const yardId = parseEnumParam(url.searchParams.get("yardId"), Object.values(EYardId) as readonly EYardId[], "yardId");
+    if (!yardId) throw new AppError(400, "yardId is required and must be one of EYardId.");
 
     const yard = yards.find((y) => y.id === yardId);
     if (!yard) throw new AppError(404, `Unknown yardId: ${yardId}`);
@@ -194,9 +190,9 @@ export async function GET(req: NextRequest) {
       };
     })();
 
-    const series = (last7Stats || []).map((s) => ({ dayKey: s.dayKey, damageCount: s.damageCount ?? 0 }));
-    const total = series.reduce((acc, s) => acc + (s.damageCount ?? 0), 0);
-    const prevTotal = (prev7Stats || []).reduce((acc, s) => acc + (s.damageCount ?? 0), 0);
+    const series = (last7Stats || []).map((s: any) => ({ dayKey: s.dayKey, damageCount: s.damageCount ?? 0 }));
+    const total = series.reduce((acc: number, s: any) => acc + (s.damageCount ?? 0), 0);
+    const prevTotal = (prev7Stats || []).reduce((acc: number, s: any) => acc + (s.damageCount ?? 0), 0);
     const delta = total - prevTotal;
 
     const damagedBlock = (damagedAgg?.[0] as any) || { rows: [], total: 0 };
@@ -234,6 +230,6 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (err) {
-    return errorResponse(err);
+    return errorResponse(err as any);
   }
 }
