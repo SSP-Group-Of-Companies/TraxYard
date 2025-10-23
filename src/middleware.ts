@@ -40,6 +40,17 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // ── Root page (/): redirect based on authentication
+  if (pathname === "/") {
+    if (!token) {
+      const loginUrl = new URL("/login", publicOrigin);
+      return NextResponse.redirect(loginUrl);
+    } else {
+      const guardUrl = new URL("/guard", publicOrigin);
+      return NextResponse.redirect(guardUrl);
+    }
+  }
+
   // ── Guards side (everything else under /)
   if (!token && !isAuthPage) {
     const loginUrl = new URL("/login", publicOrigin);

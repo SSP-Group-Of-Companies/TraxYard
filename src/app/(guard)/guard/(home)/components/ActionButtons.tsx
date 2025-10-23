@@ -25,7 +25,9 @@
 
 "use client";
 
-import { ArrowDownToLine, ArrowUpFromLine, ClipboardList } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, Wrench, Truck, ArrowRight, CheckCircle } from "lucide-react";
+import { motion } from "framer-motion";
+import { actionButtonVariants, iconVariants, attentionPulse } from "@/lib/animations/Animations";
 
 /**
  * Represents the available trailer operation modes
@@ -60,113 +62,190 @@ export default function ActionButtons({
   onSelect: (m: Mode) => void;
 }) {
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-      <GlassButton
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <EnhancedGlassButton
         label="Coming IN"
-        icon={<ArrowDownToLine className="h-4 w-4 text-[#00B36B]" />}
+        icon={<Truck className="h-5 w-5 text-[#00B36B]" />}
+        secondaryIcon={<ArrowDownToLine className="h-4 w-4 text-[#00B36B]/70" />}
         ring="ring-[#00B36B]/30"
         pressed={active === "IN"}
         onClick={() => onSelect("IN")}
+        animationType="bounce"
+        gradient="from-green-50 to-emerald-100"
       />
-      <GlassButton
+      <EnhancedGlassButton
         label="Going OUT"
-        icon={<ArrowUpFromLine className="h-4 w-4 text-[#0B63B6]" />}
+        icon={<ArrowRight className="h-5 w-5 text-[#0B63B6]" />}
+        secondaryIcon={<ArrowUpFromLine className="h-4 w-4 text-[#0B63B6]/70" />}
         ring="ring-[#0B63B6]/30"
         pressed={active === "OUT"}
         onClick={() => onSelect("OUT")}
+        animationType="pulse"
+        gradient="from-blue-50 to-sky-100"
       />
-      <GlassButton
+      <EnhancedGlassButton
         label="Inspection"
-        icon={<ClipboardList className="h-4 w-4 text-[#0B1A2A]" />}
+        icon={<Wrench className="h-5 w-5 text-[#0B1A2A]" />}
+        secondaryIcon={<CheckCircle className="h-4 w-4 text-[#0B1A2A]/70" />}
         ring="ring-black/15"
         pressed={active === "INSPECTION"}
         onClick={() => onSelect("INSPECTION")}
+        animationType="pulse"
+        gradient="from-gray-50 to-slate-100"
       />
     </div>
   );
 }
 
-/* ================================ PRIMITIVE COMPONENT ================================ */
+/* ================================ ENHANCED COMPONENT ================================ */
 
 /**
- * GlassButton Primitive Component
+ * Enhanced Glass Button Component with Advanced Animations
  * 
- * A reusable button component with glass-morphism design, featuring:
- * - Backdrop blur effects for modern glass appearance
- * - Hover and tap animations for enhanced user interaction
- * - Accessibility support with proper ARIA attributes
- * - Custom ring colors for visual distinction
- * - Responsive design with proper touch targets
+ * A premium button component featuring:
+ * - Advanced Framer Motion animations for eye-catching effects
+ * - Dual icon system with primary and secondary icons
+ * - Gradient backgrounds with glass-morphism
+ * - Continuous attention-grabbing animations
+ * - Enhanced accessibility and user feedback
+ * - Performance-optimized animations
  * 
  * @param {Object} props - Component properties
  * @param {string} props.label - Button text label
- * @param {React.ReactNode} props.icon - Icon component to display
+ * @param {React.ReactNode} props.icon - Primary icon component
+ * @param {React.ReactNode} props.secondaryIcon - Secondary icon for visual depth
  * @param {boolean} [props.pressed=false] - Whether the button is in pressed state
  * @param {string} props.ring - Tailwind CSS ring color utility class
  * @param {function} props.onClick - Click handler function
+ * @param {"pulse" | "bounce"} props.animationType - Type of continuous animation
+ * @param {string} props.gradient - Tailwind gradient classes
  * 
- * @returns {JSX.Element} Rendered glass button
+ * @returns {JSX.Element} Rendered enhanced glass button
  * 
  * @accessibility
  * - Uses aria-pressed for screen readers
  * - Proper focus management with focus-visible
  * - Keyboard navigation support
- * - Touch-friendly sizing (48px minimum)
+ * - Touch-friendly sizing (56px minimum)
+ * - Reduced motion support for accessibility
  * 
  * @design
- * - Glass-morphism with backdrop-blur
- * - Subtle elevation with shadow effects
- * - Smooth transitions for all interactions
- * - Visual feedback for active states
+ * - Enhanced glass-morphism with gradient backgrounds
+ * - Advanced shadow effects with depth
+ * - Smooth micro-interactions
+ * - Visual hierarchy with dual icons
+ * - Attention-grabbing continuous animations
  */
-function GlassButton({
+function EnhancedGlassButton({
   label,
   icon,
+  secondaryIcon,
   pressed = false,
   ring,
   onClick,
+  animationType = "pulse",
+  gradient = "from-white/70 to-white/60",
 }: {
   label: string;
   icon: React.ReactNode;
+  secondaryIcon: React.ReactNode;
   pressed?: boolean;
-  ring: string; // tailwind ring color utility
+  ring: string;
   onClick: () => void;
+  animationType?: "pulse" | "bounce";
+  gradient?: string;
 }) {
   return (
-    <button
+    <motion.button
       type="button"
       aria-pressed={pressed}
       onClick={onClick}
+      variants={actionButtonVariants}
+      initial="rest"
+      animate={pressed ? "active" : "rest"}
+      whileHover="hover"
+      whileTap="tap"
       className={[
-        "relative w-full h-12 px-4 rounded-xl",
-        "inline-flex items-center justify-center gap-2 select-none cursor-pointer",
-        // glass shell
-        "bg-white/70 backdrop-blur supports-[backdrop-filter]:bg-white/60",
-        "ring-1 ring-[var(--color-outline)]", // base outline
+        "relative w-full h-14 px-6 rounded-2xl",
+        "inline-flex items-center justify-center gap-3 select-none cursor-pointer",
+        // enhanced glass shell with gradient
+        `bg-gradient-to-br ${gradient}`,
+        "backdrop-blur-md supports-[backdrop-filter]:backdrop-blur-lg",
+        "ring-1 ring-white/20", // base outline
         pressed ? `ring-2 ${ring}` : "", // brand ring when active
-        // elevation + motion
-        "shadow-sm hover:shadow-md active:shadow-sm",
-        "transition-all duration-150",
-        "hover:-translate-y-[1px] active:translate-y-0",
-        "text-[var(--color-ink)] font-semibold",
+        // enhanced elevation
+        "shadow-lg hover:shadow-2xl",
+        "transition-all duration-300",
+        "text-[var(--color-ink)] font-bold text-sm",
+        "group overflow-hidden",
       ].join(" ")}
       style={{ WebkitTapHighlightColor: "transparent" }}
     >
-      {/* top sheen */}
+      {/* Enhanced top sheen with gradient */}
       <span
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-1/2 rounded-t-xl bg-white/10"
-        style={{ maskImage: "linear-gradient(to bottom, black, transparent)" }}
+        className="pointer-events-none absolute inset-x-0 top-0 h-1/2 rounded-t-2xl bg-gradient-to-b from-white/20 to-transparent"
       />
-      {/* inner faint border for definition */}
-      <span
+      
+      {/* Animated background glow */}
+      <motion.span
         aria-hidden
-        className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-black/5"
+        className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-r from-transparent via-white/10 to-transparent"
+        animate={{
+          x: ["-100%", "100%"],
+        }}
+        transition={{
+          duration: 3,
+          repeat: Infinity,
+          ease: "linear",
+        }}
       />
-      <span className="relative flex items-center gap-2">
-        {icon}
-        <span>{label}</span>
+      
+      {/* Inner content with enhanced layout */}
+      <span className="relative flex items-center gap-3 z-10">
+        {/* Primary icon with animation */}
+        <motion.div
+          variants={iconVariants}
+          animate={animationType}
+          whileHover="hover"
+          className="flex items-center gap-1"
+        >
+          {icon}
+          {secondaryIcon}
+        </motion.div>
+        
+        {/* Label with enhanced typography */}
+        <span className="font-bold tracking-wide">{label}</span>
       </span>
-    </button>
+      
+      {/* Attention pulse overlay */}
+      {!pressed && (
+        <motion.div
+          variants={attentionPulse}
+          animate="animate"
+          className="absolute inset-0 rounded-2xl pointer-events-none"
+          style={{
+            background: "transparent",
+            boxShadow: "0 0 0 0 rgba(59, 130, 246, 0.4)",
+          }}
+        />
+      )}
+      
+      {/* Subtle glow effect for extra attention */}
+      <motion.div
+        className="absolute inset-0 rounded-2xl pointer-events-none opacity-0 group-hover:opacity-100"
+        style={{
+          background: "linear-gradient(45deg, rgba(255,255,255,0.1), transparent, rgba(255,255,255,0.1))",
+        }}
+        animate={{
+          opacity: [0, 0.3, 0],
+        }}
+        transition={{
+          duration: 2,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+      />
+    </motion.button>
   );
 }

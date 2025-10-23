@@ -1,8 +1,8 @@
 /**
  * @fileoverview Root Page - TraxYard Application Entry Point
  * 
- * This is the root page that handles the initial routing logic for the TraxYard application.
- * It redirects unauthenticated users to the login page and authenticated users to the guard dashboard.
+ * This is the root page that serves as the entry point for the TraxYard application.
+ * The middleware handles authentication redirects, so this page should rarely be rendered.
  * 
  * @author Faruq Adebayo Atanda
  * @owner SSP Group of Companies
@@ -11,46 +11,34 @@
  * 
  * @dependencies
  * - Next.js: Server component architecture
- * - NextAuth: Authentication handling
+ * - Middleware: Authentication handling
  * 
  * @features
- * - Automatic redirect to login for unauthenticated users
- * - Automatic redirect to guard dashboard for authenticated users
- * - Server-side authentication check
- * - SEO-friendly redirects
+ * - Fallback page for edge cases
+ * - Middleware handles all authentication redirects
+ * - SEO-friendly content
  */
-
-import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/authOptions";
 
 /**
  * Root Page Component
  * 
- * Handles the initial routing logic for the TraxYard application.
- * Redirects users based on their authentication status.
+ * Fallback page that should rarely be rendered due to middleware redirects.
+ * Provides a loading state while authentication is being processed.
  * 
- * @returns {Promise<never>} Redirects to appropriate page
- * 
- * @logic
- * - If user is authenticated: redirect to guard dashboard (/guard)
- * - If user is not authenticated: redirect to login page (/login)
- * - Middleware handles the actual redirect logic
+ * @returns {JSX.Element} Loading page
  * 
  * @performance
- * - Server-side authentication check
- * - Immediate redirect without rendering
- * - Optimized for fast user experience
+ * - Minimal rendering overhead
+ * - Fast loading with simple content
+ * - Middleware handles all redirects
  */
-export default async function RootPage() {
-  // Get the current session
-  const session = await getServerSession(authOptions);
-  
-  // If user is authenticated, redirect to guard dashboard
-  if (session) {
-    redirect("/guard");
-  }
-  
-  // If user is not authenticated, redirect to login
-  redirect("/login");
+export default function RootPage() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p className="text-gray-600">Loading TraxYard...</p>
+      </div>
+    </div>
+  );
 }

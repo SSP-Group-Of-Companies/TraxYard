@@ -1,22 +1,22 @@
 /**
  * @fileoverview HomeClient Component - TraxYard Guard Interface
- * 
+ *
  * Main client component for the guard dashboard home page. Orchestrates all
  * dashboard components with animations, data fetching, and user interactions.
  * Features personalized greetings, real-time data, and modal management.
- * 
+ *
  * @author Faruq Adebayo Atanda
  * @owner SSP Group of Companies
  * @created 2025
  * @version 1.0.0
- * 
+ *
  * @dependencies
  * - framer-motion: For smooth animations and transitions
  * - next-auth: For user session management
  * - zustand: For global state management
  * - Custom hooks: useGuardDashboard for data fetching
  * - Custom animations: staggerContainer, staggerItem, fadeInVariants
- * 
+ *
  * @features
  * - Personalized time-based greetings
  * - Real-time dashboard data with auto-refresh
@@ -31,7 +31,11 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useSession } from "next-auth/react";
-import { staggerContainer, staggerItem, fadeInVariants } from "@/lib/animations/Animations";
+import {
+  staggerContainer,
+  staggerItem,
+  fadeInVariants,
+} from "@/lib/animations/Animations";
 import { useYardStore } from "@/store/useYardStore";
 import { useGuardDashboard } from "../hooks/useGuardDashboard";
 
@@ -43,22 +47,22 @@ import CapacityCard from "./CapacityCard";
 
 /**
  * HomeClient Component
- * 
+ *
  * Main dashboard component that orchestrates all guard interface functionality.
  * Manages state, data fetching, animations, and user interactions.
- * 
+ *
  * @returns {JSX.Element} Complete guard dashboard interface
- * 
+ *
  * @state
  * - mode: Tracks active trailer operation mode
  * - data: Real-time dashboard data from API
  * - isLoading: Loading state for data fetching
- * 
+ *
  * @performance
  * - Memoized greeting calculation for time-based messages
  * - Optimized re-renders with proper state management
  * - Auto-refresh every 60 seconds for real-time data
- * 
+ *
  * @accessibility
  * - Semantic HTML structure
  * - Proper ARIA labels and roles
@@ -96,14 +100,14 @@ export default function HomeClient() {
   const counts = data?.stats ?? null;
 
   return (
-    <motion.section 
+    <motion.section
       className="container-guard"
       variants={staggerContainer}
       initial="initial"
       animate="animate"
     >
       {/* ================= Header ================= */}
-      <motion.div 
+      <motion.div
         className="flex flex-col items-start gap-3 py-6 sm:flex-row sm:items-center sm:justify-between"
         variants={staggerItem}
       >
@@ -128,10 +132,7 @@ export default function HomeClient() {
       </motion.div>
 
       {/* ================= Yard Capacity ================= */}
-      <motion.div 
-        className="space-y-4 sm:space-y-6"
-        variants={staggerItem}
-      >
+      <motion.div className="space-y-4 sm:space-y-6" variants={staggerItem}>
         <motion.div variants={fadeInVariants}>
           <CapacityCard
             yardName={data?.yard?.name ?? null}
@@ -141,22 +142,19 @@ export default function HomeClient() {
           />
         </motion.div>
 
-        {/* ================= Action Buttons ================= */}
-        <motion.div variants={fadeInVariants}>
-          <ActionButtons active={mode} onSelect={(m) => setMode(m)} />
-        </motion.div>
-
         {/* ================= Daily Stats ================= */}
-        <motion.div 
-          className="mt-6"
-          variants={fadeInVariants}
-        >
+        <motion.div variants={fadeInVariants}>
           <DailyCounts
             inCount={isLoading ? null : counts?.inCount ?? 0}
             outCount={isLoading ? null : counts?.outCount ?? 0}
             damageCount={isLoading ? null : counts?.damageCount ?? 0}
             inspectionCount={isLoading ? null : counts?.inspectionCount ?? 0}
           />
+        </motion.div>
+
+        {/* ================= Action Buttons ================= */}
+        <motion.div className="mt-6" variants={fadeInVariants}>
+          <ActionButtons active={mode} onSelect={(m) => setMode(m)} />
         </motion.div>
       </motion.div>
 

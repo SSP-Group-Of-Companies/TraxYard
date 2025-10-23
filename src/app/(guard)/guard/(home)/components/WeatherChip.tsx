@@ -127,6 +127,7 @@ export default function WeatherChip({
       return new Intl.DateTimeFormat(undefined, {
         hour: "numeric",
         minute: "2-digit",
+        hour12: true,
       }).format(d);
     } catch {
       return null;
@@ -223,7 +224,7 @@ export default function WeatherChip({
 
           {asOf && (
             <div className="mt-1 text-[10px] sm:text-[11px] text-white/80">
-              as of {asOf}
+              as of: {asOf}
             </div>
           )}
         </motion.div>
