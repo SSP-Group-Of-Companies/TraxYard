@@ -91,17 +91,18 @@ import { ETrailerStatus } from "@/types/Trailer.types";
 import { EYardId } from "@/types/yard.types";
 import { getOpenMeteoCurrent } from "@/lib/utils/weather/openMeteo";
 
+import { parseEnumParam } from "@/lib/utils/queryUtils";
+
 export async function GET(req: NextRequest) {
   try {
     await guard();
     await connectDB();
 
     const url = new URL(req.url);
-    const yardId = url.searchParams.get("yardId") as EYardId | null;
 
-    if (!yardId || !Object.values(EYardId).includes(yardId)) {
-      throw new AppError(400, "yardId is required and must be one of EYardId.");
-    }
+    // Use shared enum parser (readonly-safe) instead of manual includes()
+    const yardId = parseEnumParam(url.searchParams.get("yardId"), Object.values(EYardId) as readonly EYardId[], "yardId");
+    if (!yardId) throw new AppError(400, "yardId is required and must be one of EYardId.");
 
     const yard = yards.find((y) => y.id === yardId);
     if (!yard) throw new AppError(404, `Unknown yardId: ${yardId}`);
@@ -130,6 +131,6 @@ export async function GET(req: NextRequest) {
       weather, // includes iconHint + label for UI
     });
   } catch (err) {
-    return errorResponse(err);
+    return errorResponse(err as any);
   }
 }

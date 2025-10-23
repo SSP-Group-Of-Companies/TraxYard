@@ -52,21 +52,8 @@ import { ETrailerStatus, ETrailerCondition, ETrailerLoadState, ETrailerType } fr
 import { EYardId } from "@/types/yard.types";
 import { EMovementType } from "@/types/movement.types";
 
-/** Parse boolean-ish query values */
-function parseBool(v: string | null): boolean | null {
-  if (v == null) return null;
-  const t = v.trim().toLowerCase();
-  if (["1", "true", "yes", "y"].includes(t)) return true;
-  if (["0", "false", "no", "n"].includes(t)) return false;
-  return null;
-}
+import { parseBool, rx, parseEnumParam, parsePagination, parseSort, buildMeta } from "@/lib/utils/queryUtils";
 
-/** Case-insensitive, escaped regex */
-function rx(s: string) {
-  return new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
-}
-
-/** Allowed single-field sorts -> pipeline paths */
 const SORT_MAP = {
   trailerNumber: "trailerNumber",
   owner: "owner",
@@ -81,7 +68,6 @@ const SORT_MAP = {
   lastMoveTs: "lastMoveIoTs",
   truckNumber: "lastMoveIo.carrier.truckNumber",
 } as const;
-
 type SortKey = keyof typeof SORT_MAP;
 
 export async function GET(req: NextRequest) {
@@ -91,56 +77,23 @@ export async function GET(req: NextRequest) {
 
     const url = new URL(req.url);
 
-    // EYardId required
-    const yardId = url.searchParams.get("yardId") as EYardId | null;
-    if (!yardId || !Object.values(EYardId).includes(yardId)) {
-      throw new AppError(400, "yardId is required and must be one of EYardId.");
-    }
+    // EYardId required (strict)
+    const yardId = parseEnumParam(url.searchParams.get("yardId"), Object.values(EYardId) as readonly EYardId[], "yardId");
+    if (!yardId) throw new AppError(400, "yardId is required and must be one of EYardId.");
 
     // Pagination
-    const page = Math.max(parseInt(url.searchParams.get("page") || "1", 10), 1);
-    const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") || "20", 10), 1), 100);
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = parsePagination(url.searchParams.get("page"), url.searchParams.get("limit"));
 
     // Filters
     const q = url.searchParams.get("q")?.trim() || "";
-    const typeParamRaw = url.searchParams.get("trailerType");
-    const conditionRaw = url.searchParams.get("condition");
-    const loadRaw = url.searchParams.get("loadState");
+    const typeParam = parseEnumParam(url.searchParams.get("trailerType"), Object.values(ETrailerType) as readonly ETrailerType[], "trailerType");
+    const conditionParam = parseEnumParam(url.searchParams.get("condition"), Object.values(ETrailerCondition) as readonly ETrailerCondition[], "condition");
+    const loadParam = parseEnumParam(url.searchParams.get("loadState"), Object.values(ETrailerLoadState) as readonly ETrailerLoadState[], "loadState");
     const expiredOnly = parseBool(url.searchParams.get("expiredOnly"));
 
-    // Validate enums STRICTLY if present
-    let typeParam: ETrailerType | null = null;
-    if (typeParamRaw != null) {
-      if (!(Object.values(ETrailerType) as string[]).includes(typeParamRaw)) {
-        throw new AppError(400, `Invalid trailerType. Allowed: ${Object.values(ETrailerType).join(", ")}`);
-      }
-      typeParam = typeParamRaw as ETrailerType;
-    }
-
-    let conditionParam: ETrailerCondition | null = null;
-    if (conditionRaw != null) {
-      if (!(Object.values(ETrailerCondition) as string[]).includes(conditionRaw)) {
-        throw new AppError(400, `Invalid condition. Allowed: ${Object.values(ETrailerCondition).join(", ")}`);
-      }
-      conditionParam = conditionRaw as ETrailerCondition;
-    }
-
-    let loadParam: ETrailerLoadState | null = null;
-    if (loadRaw != null) {
-      if (!(Object.values(ETrailerLoadState) as string[]).includes(loadRaw)) {
-        throw new AppError(400, `Invalid loadState. Allowed: ${Object.values(ETrailerLoadState).join(", ")}`);
-      }
-      loadParam = loadRaw as ETrailerLoadState;
-    }
-
     // Sorting
-    const sortByRaw = (url.searchParams.get("sortBy") as SortKey | null) || "updatedAt";
-    if (!(sortByRaw in SORT_MAP)) {
-      throw new AppError(400, `Invalid sortBy. Allowed: ${Object.keys(SORT_MAP).join(", ")}`);
-    }
-    const sortBy = sortByRaw;
-    const sortDir = (url.searchParams.get("sortDir") || "desc").toLowerCase() === "asc" ? 1 : -1;
+    const allowedKeys = Object.keys(SORT_MAP) as readonly SortKey[];
+    const { sortBy, sortDir } = parseSort(url.searchParams.get("sortBy"), url.searchParams.get("sortDir"), allowedKeys, "updatedAt");
     const sortPath = SORT_MAP[sortBy];
 
     // Base match: IN + yard
@@ -219,28 +172,24 @@ export async function GET(req: NextRequest) {
 
     const agg = await Trailer.aggregate(pipeline).allowDiskUse(true);
     const { rows, total } = (agg?.[0] as any) || { rows: [], total: 0 };
-    const totalPages = Math.max(Math.ceil((total as number) / limit), 1);
 
     return successResponse(200, "OK", {
       data: rows,
-      meta: {
-        yardId,
+      meta: buildMeta({
         page,
         pageSize: limit,
         total,
-        totalPages,
-        hasPrev: page > 1,
-        hasNext: page < totalPages,
         sortBy,
-        sortDir: sortDir === 1 ? "asc" : "desc",
+        sortDir,
         filters: {
+          yardId,
           q: q || null,
           trailerType: typeParam ?? null,
           condition: conditionParam ?? null,
           loadState: loadParam ?? null,
           expiredOnly: expiredOnly ?? null,
         },
-      },
+      }),
     });
   } catch (err: any) {
     return errorResponse(err);
