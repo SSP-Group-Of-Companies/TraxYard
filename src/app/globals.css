@@ -360,3 +360,8 @@ canvas {
   position: relative;
   z-index: 1;
 }
+
+/* Guard layout gradient background override */
+.guard-watermark {
+  background: transparent !important;
+}
