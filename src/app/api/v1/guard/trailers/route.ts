@@ -3,19 +3,29 @@
  * GET /api/v1/guard/trailers
  * -----------------------------------------------------------------------------
  * Purpose
- *   Return ONLY trailers that are currently IN a specific yard.
+ *   Generic trailers search (not locked to a yard).
+ *   - Search by trailer number (ID) or the last move's truck number.
+ *   - Optionally filter by status (IN | OUT) and/or yardId.
+ *   - Supports additional filters, pagination, and single-field sorting.
  *
- * Required
- *   - yardId: EYardId  (YARD1 | YARD2 | YARD3)
+ * Notes
+ *   - yardId filter matches the trailer's current yardId (typically only set when status=IN).
+ *   - Searching by OUT with a yardId will usually return no rows (OUT trailers typically have no yardId).
+ *   - 'expiredOnly=true' returns trailers whose safetyInspectionExpiryDate is in the past (relative to now).
  *
- * Optional (all combine together)
+ * Query: Required
+ *   (none)
+ *
+ * Query: Optional (all combine)
  *   - page: number           default 1   (min 1)
  *   - limit: number          default 20  (min 1, max 100)
- *   - q: string              matches trailerId (trailerNumber) OR truckNumber
+ *   - q: string              matches trailerNumber OR lastMoveIo.carrier.truckNumber
+ *   - status: enum           IN | OUT                     // current trailer status
+ *   - yardId: EYardId        YARD1 | YARD2 | YARD3        // current yard (usually only for IN)
  *   - trailerType: enum      DRY_VAN | FLATBED | FLATBED_ROLL_TITE | STEP_DECK | STEP_DECK_ROLL_TITE
  *   - condition: enum        ACTIVE | OUT_OF_SERVICE | DAMAGED
  *   - loadState: enum        EMPTY | LOADED | UNKNOWN
- *   - expiredOnly: boolean   true to return trailers with safetyInspectionExpiryDate in the past
+ *   - expiredOnly: boolean   true → safetyInspectionExpiryDate < now
  *
  * Sorting (single field)
  *   - sortBy: trailerNumber | owner | licensePlate | stateOrProvince | trailerType |
@@ -26,25 +36,25 @@
  * Response (200)
  *   {
  *     message: "OK",
- *     data: Trailer[],         // trailers currently IN the requested yard
+ *     data: Trailer[],
  *     meta: {
- *       yardId, page, pageSize, total, totalPages, hasPrev, hasNext,
+ *       page, pageSize, total, totalPages, hasPrev, hasNext,
  *       sortBy, sortDir,
- *       filters: { q, trailerType, condition, loadState, expiredOnly }
+ *       filters: { q, status, yardId, trailerType, condition, loadState, expiredOnly }
  *     }
  *   }
  *
  * Examples
- *   /api/v1/guard/trailers?yardId=YARD2
- *   /api/v1/guard/trailers?yardId=YARD2&q=TRLR-1002          // trailerId (trailerNumber)
- *   /api/v1/guard/trailers?yardId=YARD2&q=TRK-102            // truckNumber (from lastMoveIo)
- *   /api/v1/guard/trailers?yardId=YARD2&trailerType=FLATBED_ROLL_TITE&loadState=LOADED
- *   /api/v1/guard/trailers?yardId=YARD2&expiredOnly=true&sortBy=licensePlate&sortDir=asc
+ *   /api/v1/guard/trailers?q=TRL-1002
+ *   /api/v1/guard/trailers?status=IN&yardId=YARD2
+ *   /api/v1/guard/trailers?status=OUT&q=TRK-102
+ *   /api/v1/guard/trailers?trailerType=FLATBED_ROLL_TITE&loadState=LOADED
+ *   /api/v1/guard/trailers?expiredOnly=true&sortBy=licensePlate&sortDir=asc
  */
 
 import { NextRequest } from "next/server";
 import connectDB from "@/lib/utils/connectDB";
-import { successResponse, errorResponse, AppError } from "@/lib/utils/apiResponse";
+import { successResponse, errorResponse } from "@/lib/utils/apiResponse";
 import { guard } from "@/lib/auth/authUtils";
 
 import { Trailer } from "@/mongoose/models/Trailer";
@@ -77,18 +87,22 @@ export async function GET(req: NextRequest) {
 
     const url = new URL(req.url);
 
-    // EYardId required (strict)
-    const yardId = parseEnumParam(url.searchParams.get("yardId"), Object.values(EYardId) as readonly EYardId[], "yardId");
-    if (!yardId) throw new AppError(400, "yardId is required and must be one of EYardId.");
-
     // Pagination
     const { page, limit, skip } = parsePagination(url.searchParams.get("page"), url.searchParams.get("limit"));
 
     // Filters
     const q = url.searchParams.get("q")?.trim() || "";
+
+    const statusParam = parseEnumParam(url.searchParams.get("status"), Object.values(ETrailerStatus) as readonly ETrailerStatus[], "status");
+
+    const yardParam = parseEnumParam(url.searchParams.get("yardId"), Object.values(EYardId) as readonly EYardId[], "yardId");
+
     const typeParam = parseEnumParam(url.searchParams.get("trailerType"), Object.values(ETrailerType) as readonly ETrailerType[], "trailerType");
+
     const conditionParam = parseEnumParam(url.searchParams.get("condition"), Object.values(ETrailerCondition) as readonly ETrailerCondition[], "condition");
+
     const loadParam = parseEnumParam(url.searchParams.get("loadState"), Object.values(ETrailerLoadState) as readonly ETrailerLoadState[], "loadState");
+
     const expiredOnly = parseBool(url.searchParams.get("expiredOnly"));
 
     // Sorting
@@ -96,8 +110,10 @@ export async function GET(req: NextRequest) {
     const { sortBy, sortDir } = parseSort(url.searchParams.get("sortBy"), url.searchParams.get("sortDir"), allowedKeys, "updatedAt");
     const sortPath = SORT_MAP[sortBy];
 
-    // Base match: IN + yard
-    const baseMatch: Record<string, any> = { status: ETrailerStatus.IN, yardId };
+    // Base match: build from optional filters
+    const baseMatch: Record<string, any> = {};
+    if (statusParam) baseMatch.status = statusParam;
+    if (yardParam) baseMatch.yardId = yardParam; // usually meaningful when status=IN
     if (typeParam) baseMatch.trailerType = typeParam;
     if (conditionParam) baseMatch.condition = conditionParam;
     if (loadParam) baseMatch.loadState = loadParam;
@@ -110,7 +126,12 @@ export async function GET(req: NextRequest) {
           from: "movements",
           let: { trailerId: "$_id" },
           pipeline: [
-            { $match: { $expr: { $eq: ["$trailer", "$$trailerId"] }, type: { $in: [EMovementType.IN, EMovementType.OUT] } } },
+            {
+              $match: {
+                $expr: { $eq: ["$trailer", "$$trailerId"] },
+                type: { $in: [EMovementType.IN, EMovementType.OUT] },
+              },
+            },
             { $sort: { ts: -1 } },
             { $limit: 1 },
             { $project: { ts: 1, "carrier.truckNumber": 1, type: 1, yardId: 1 } },
@@ -124,7 +145,11 @@ export async function GET(req: NextRequest) {
     // q only: trailerNumber OR lastMoveIo.carrier.truckNumber
     if (q) {
       const r = rx(q);
-      pipeline.push({ $match: { $or: [{ trailerNumber: r }, { "lastMoveIo.carrier.truckNumber": r }] } });
+      pipeline.push({
+        $match: {
+          $or: [{ trailerNumber: r }, { "lastMoveIo.carrier.truckNumber": r }],
+        },
+      });
     }
 
     pipeline.push(
@@ -182,8 +207,9 @@ export async function GET(req: NextRequest) {
         sortBy,
         sortDir,
         filters: {
-          yardId,
           q: q || null,
+          status: statusParam ?? null,
+          yardId: yardParam ?? null,
           trailerType: typeParam ?? null,
           condition: conditionParam ?? null,
           loadState: loadParam ?? null,
