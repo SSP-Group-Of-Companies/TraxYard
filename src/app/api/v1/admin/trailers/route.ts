@@ -46,7 +46,7 @@
 
 import { NextRequest } from "next/server";
 import connectDB from "@/lib/utils/connectDB";
-import { successResponse, errorResponse } from "@/lib/utils/apiResponse";
+import { successResponse, errorResponse, AppError } from "@/lib/utils/apiResponse";
 import { guard } from "@/lib/auth/authUtils";
 
 import { Trailer } from "@/mongoose/models/Trailer";
@@ -55,6 +55,7 @@ import { EYardId } from "@/types/yard.types";
 import { EMovementType } from "@/types/movement.types";
 
 import { parseBool, rx, parseEnumParam, parsePagination, parseSort, buildMeta } from "@/lib/utils/queryUtils";
+import { parseJsonBody } from "@/lib/utils/reqParser";
 
 const SORT_MAP = {
   trailerNumber: "trailerNumber",
@@ -207,6 +208,107 @@ export async function GET(req: NextRequest) {
         },
       }),
     });
+  } catch (err: any) {
+    return errorResponse(err);
+  }
+}
+
+// src/app/api/v1/admin/trailers/route.ts
+/**
+ * POST /api/v1/admin/trailers
+ * -----------------------------------------------------------------------------
+ * Purpose
+ *   Create a new trailer. Admins CANNOT set status or yard; those are controlled
+ *   only by movements. Creation always sets:
+ *     - status = OUT
+ *     - yardId = undefined
+ *
+ * Required JSON body
+ *   - trailerNumber: string (unique)
+ *   - owner: string
+ *   - make: string
+ *   - model: string
+ *   - year: number (1900..9999)
+ *   - trailerType: ETrailerType
+ *   - licensePlate: string
+ *   - stateOrProvince: string
+ *   - safetyInspectionExpiryDate: ISO date string
+ *
+ * Optional JSON body
+ *   - vin?: string (unique, sparse)
+ *   - condition?: ETrailerCondition (default: ACTIVE)
+ *   - loadState?: ETrailerLoadState   (default: UNKNOWN)
+ *   - comments?: string
+ *
+ * Notes
+ *   - Any provided `status` or `yardId` will be ignored.
+ *   - lastMoveIo / lastMoveIoTs are not set here (movements will populate).
+ */
+export async function POST(req: NextRequest) {
+  try {
+    await connectDB();
+    await guard();
+
+    const body = await parseJsonBody(req);
+
+    // Required primitives
+    const trailerNumber = String(body.trailerNumber || "").trim();
+    const owner = String(body.owner || "").trim();
+    const make = String(body.make || "").trim();
+    const model = String(body.model || "").trim();
+    const year = Number(body.year);
+    const licensePlate = String(body.licensePlate || "").trim();
+    const stateOrProvince = String(body.stateOrProvince || "").trim();
+    const safetyInspectionExpiryDateRaw = body.safetyInspectionExpiryDate;
+
+    if (!trailerNumber) throw new AppError(400, "trailerNumber is required.");
+    if (!owner) throw new AppError(400, "owner is required.");
+    if (!make) throw new AppError(400, "make is required.");
+    if (!model) throw new AppError(400, "model is required.");
+    if (!Number.isFinite(year)) throw new AppError(400, "year must be a number.");
+    if (!licensePlate) throw new AppError(400, "licensePlate is required.");
+    if (!stateOrProvince) throw new AppError(400, "stateOrProvince is required.");
+    if (!safetyInspectionExpiryDateRaw) {
+      throw new AppError(400, "safetyInspectionExpiryDate is required.");
+    }
+
+    const safetyInspectionExpiryDate = new Date(safetyInspectionExpiryDateRaw);
+    if (isNaN(safetyInspectionExpiryDate.getTime())) {
+      throw new AppError(400, "safetyInspectionExpiryDate must be a valid ISO date.");
+    }
+
+    // Enums
+    const trailerType = parseEnumParam(body.trailerType, Object.values(ETrailerType) as readonly ETrailerType[], "trailerType");
+    if (!trailerType) throw new AppError(400, "trailerType is required and must be valid.");
+
+    const condition = parseEnumParam(body.condition, Object.values(ETrailerCondition) as readonly ETrailerCondition[], "condition") ?? ETrailerCondition.ACTIVE;
+
+    const loadState = parseEnumParam(body.loadState, Object.values(ETrailerLoadState) as readonly ETrailerLoadState[], "loadState") ?? ETrailerLoadState.UNKNOWN;
+
+    // Optionals
+    const vin = body.vin ? String(body.vin).trim() : undefined;
+    const comments = body.comments ? String(body.comments).trim() : undefined;
+
+    const created = await Trailer.create({
+      trailerNumber,
+      owner,
+      make,
+      model,
+      year,
+      vin,
+      licensePlate, // model upper-trims for canonicalization
+      stateOrProvince, // model upper-trims for canonicalization
+      trailerType, // model upper-trims to UPPER_SNAKE
+      safetyInspectionExpiryDate,
+      comments,
+      condition,
+      loadState,
+      status: ETrailerStatus.OUT, // forced by policy
+      yardId: undefined, // forced by policy
+      // totalMovements defaults to 0 via schema
+    });
+
+    return successResponse(201, "Created", created);
   } catch (err: any) {
     return errorResponse(err);
   }

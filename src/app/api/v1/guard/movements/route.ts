@@ -55,10 +55,22 @@
  * -----------------
  * - Either:
  *     - trailerId: string (existing trailer), OR
- *     - trailer: { owner, make, model?, year, vin?, licensePlate, stateOrProvince,
- *                  trailerType, safetyInspectionExpiryDate, comments? } to create a new trailer on the fly.
+- trailer: {
+ *         trailerNumber,          // REQUIRED (unique)
+ *         owner,                  // REQUIRED
+ *         make,                   // REQUIRED
+ *         model,                  // REQUIRED
+ *         year,                   // REQUIRED (1900..9999)
+ *         vin?,                   // OPTIONAL (unique, sparse)
+ *         licensePlate,           // REQUIRED
+ *         stateOrProvince,        // REQUIRED
+ *         trailerType,            // REQUIRED (one of ETrailerType)
+ *         safetyInspectionExpiryDate, // REQUIRED (Date)
+ *         comments?               // OPTIONAL
+ *       } to create a new trailer on the fly.
  *   Notes:
  *     - New trailers start with status OUT by default; they are still allowed to perform the first IN/OUT.
+ *     - yardId is only required when status is IN (model enforces this). We set OUT on creation.
  *
  * File Handling
  * -------------
@@ -399,30 +411,33 @@ export async function POST(req: NextRequest) {
     // Trailer resolution: create if trailer object is supplied; otherwise expect trailerId
     let trailerId: string;
     if (body.trailer && !body.trailer._id && !body.trailer.id && !body.trailerId) {
-      // Create new trailer with minimal required fields
+      // Align with schema-required fields
       const t: Partial<TTrailer> = {
-        trailerNumber: body.trailer.trailerNumber, // optional; schema demands unique if provided
+        trailerNumber: body.trailer.trailerNumber,
         owner: body.trailer.owner,
         make: body.trailer.make,
-        model: body.trailer.model ?? "UNKNOWN",
+        model: body.trailer.model,
         year: body.trailer.year,
-        vin: body.trailer.vin,
+        vin: body.trailer.vin, // optional (sparse unique)
         licensePlate: body.trailer.licensePlate,
         stateOrProvince: body.trailer.stateOrProvince,
         trailerType: body.trailer.trailerType,
         safetyInspectionExpiryDate: new Date(body.trailer.safetyInspectionExpiryDate),
         comments: body.trailer.comments ?? undefined,
 
-        // snapshot defaults (will be set again after movement)
-        status: ETrailerStatus.OUT,
-        yardId: undefined,
-        loadState: ETrailerLoadState.UNKNOWN,
-        totalMovements: 0,
+        // snapshot defaults (model requires these but also has defaults where applicable)
+        status: ETrailerStatus.OUT, // required; OUT so yardId is not required on create
+        yardId: undefined, // only required when status === IN
+        loadState: ETrailerLoadState.UNKNOWN, // has default in schema; explicit is fine
+        totalMovements: 0, // required; default 0
+        // condition will default to ACTIVE via schema
       };
 
-      // Basic presence checks for new trailer (fail-fast)
+      // Presence checks — mirror schema requirements
+      assert(!!t.trailerNumber, "New trailer.trailerNumber is required");
       assert(!!t.owner, "New trailer.owner is required");
       assert(!!t.make, "New trailer.make is required");
+      assert(!!t.model, "New trailer.model is required");
       assert(!!t.year, "New trailer.year is required");
       assert(!!t.licensePlate, "New trailer.licensePlate is required");
       assert(!!t.stateOrProvince, "New trailer.stateOrProvince is required");
