@@ -36,17 +36,19 @@
  *       isLoaded: boolean,
  *       trailerBound: "SOUTH_BOUND" | "NORTH_BOUND" | "LOCAL"
  *     }
- *   - fines: { lights: boolean, tires: boolean, plates: boolean, mudFlaps: boolean, hinges: boolean, notes?: string }
- *   - documentInfo: { notes?: string, attachments: FileAsset[] (TEMP keys ok) }
- *   - extras:       { notes?: string, attachments: FileAsset[] (TEMP keys ok) }
- *   - angles:       all 8 required angle photos present as FileAsset (TEMP keys ok)
- *   - axles:        array length 2..6; each with axleNumber (1..6), type ("SINGLE"|"DUAL"),
- *                   left/right.outer required; inner required if type=DUAL; each tire has
- *                   { brand, psi 0..200, condition "ORI"|"RE", photo (TEMP key ok) }
+ *   - documents: Array<{ description: string, photo: FileAsset (TEMP key ok) }>
+ *   - angles:    all 8 required angle photos present as FileAsset (TEMP keys ok)
+ *   - axles:     array length 2..6; each with axleNumber (1..6), type ("SINGLE"|"DUAL"),
+ *                left/right are required and each side has:
+ *                {
+ *                  photo: FileAsset (TEMP key ok),  // one photo per side
+ *                  outer: { brand, psi 0..200, condition "ORI"|"RE" },
+ *                  inner?: { brand, psi 0..200, condition "ORI"|"RE" } // required if type=DUAL
+ *                }
  *   - damageChecklist: object (shape defined client-side; presence required)
- *   - damages?:     array of { location: string, type: string, newDamage: boolean,
- *                   photo: FileAsset (TEMP key ok), comment?: string }
- *   - ctpat:        object (presence required)
+ *   - damages?: array of { location: string, type: string, newDamage: boolean,
+ *                photo: FileAsset (TEMP key ok), comment?: string }
+ *   - ctpat:    object (presence required)
  *
  * For type = "IN" or "OUT":
  *   - yardId: "YARD1" | "YARD2" | "YARD3" (required)
@@ -55,7 +57,7 @@
  * -----------------
  * - Either:
  *     - trailerId: string (existing trailer), OR
-- trailer: {
+ *     - trailer: {
  *         trailerNumber,          // REQUIRED (unique)
  *         owner,                  // REQUIRED
  *         make,                   // REQUIRED
@@ -135,11 +137,18 @@
  *     "isLoaded": true,
  *     "trailerBound": "NORTH_BOUND"
  *   },
- *   "fines": { "lights": false, "tires": false, "plates": false, "mudFlaps": false, "hinges": false, "notes": "" },
- *   "documentInfo": { "notes": "", "attachments": [ { "s3Key": "temp/...", "mimeType": "image/jpeg" } ] },
- *   "extras":       { "notes": "", "attachments": [] },
+ *   "documents": [
+ *     { "description": "BOL", "photo": { "s3Key": "temp/...", "mimeType": "image/jpeg" } }
+ *   ],
  *   "angles": { ...8 angle objects with { photo: { s3Key: "temp/...", mimeType: "..." } } ... },
- *   "axles": [ ...2..6 axle entries with tire specs & photos... ],
+ *   "axles": [
+ *     {
+ *       "axleNumber": 1,
+ *       "type": "DUAL",
+ *       "left":  { "photo": { "s3Key": "temp/..." }, "outer": { "brand": "X", "psi": 100, "condition": "ORI" }, "inner": { "brand": "X", "psi": 100, "condition": "ORI" } },
+ *       "right": { "photo": { "s3Key": "temp/..." }, "outer": { "brand": "X", "psi": 100, "condition": "ORI" }, "inner": { "brand": "X", "psi": 100, "condition": "ORI" } }
+ *     }
+ *   ],
  *   "damageChecklist": { ... },
  *   "damages": [ { "location": "LEFT_FRONT", "type": "SCRATCH", "newDamage": true,
  *                  "photo": { "s3Key": "temp/...", "mimeType": "image/jpeg" }, "comment": "" } ],
@@ -148,7 +157,7 @@
  *
  * Notes for Frontend
  * ------------------
- * - Always send every required angle photo and tire photo per rules above.
+ * - Always send every required angle photo and each side photo (left/right) for axles.
  * - Always include `requestId` to make retries safe.
  * - For new trailers, provide the minimal trailer object (see Trailer Reference).
  * - On success, use the returned `movement` for all FINAL S3 keys to display images.
@@ -166,7 +175,7 @@ import { YardDayStat } from "@/mongoose/models/YardDayStat";
 import { yards } from "@/data/yards";
 import { APP_TZ, dayKeyToStartUtc, toDayKey } from "@/lib/utils/dateUtils";
 
-import { isTempKey, makeEntityFinalPrefix, deleteS3Objects, finalizeAssetWithCache, finalizeVectorWithCache } from "@/lib/utils/s3Helper";
+import { isTempKey, makeEntityFinalPrefix, deleteS3Objects, finalizeAssetWithCache } from "@/lib/utils/s3Helper";
 
 import { ES3Folder, ES3Namespace } from "@/types/aws.types";
 import { EMovementType, type TMovement, type TAnglePhotos, type TDamageItem } from "@/types/movement.types";
@@ -214,9 +223,8 @@ const ANGLE_FOLDER_BY_KEY: Record<keyof TAnglePhotos, ES3Folder> = {
 function collectAllTempKeys(m: TMovement): string[] {
   const keys: string[] = [];
 
-  // Section 1 files
-  for (const a of m.documentInfo?.attachments ?? []) if (isTempKey(a?.s3Key)) keys.push(a.s3Key);
-  for (const a of m.extras?.attachments ?? []) if (isTempKey(a?.s3Key)) keys.push(a.s3Key);
+  // Section 1: documents
+  for (const d of m.documents ?? []) if (isTempKey(d?.photo?.s3Key)) keys.push(d.photo.s3Key);
 
   // Section 2 angles
   (Object.keys(ANGLE_FOLDER_BY_KEY) as Array<keyof TAnglePhotos>).forEach((k) => {
@@ -224,16 +232,12 @@ function collectAllTempKeys(m: TMovement): string[] {
     if (asset?.s3Key && isTempKey(asset.s3Key)) keys.push(asset.s3Key);
   });
 
-  // Section 3 tires
+  // Section 3 axle side photos
   for (const ax of m.axles ?? []) {
-    const lOut = ax.left?.outer?.photo;
-    if (lOut?.s3Key && isTempKey(lOut.s3Key)) keys.push(lOut.s3Key);
-    const lIn = ax.left?.inner?.photo;
-    if (lIn?.s3Key && isTempKey(lIn.s3Key)) keys.push(lIn.s3Key);
-    const rOut = ax.right?.outer?.photo;
-    if (rOut?.s3Key && isTempKey(rOut.s3Key)) keys.push(rOut.s3Key);
-    const rIn = ax.right?.inner?.photo;
-    if (rIn?.s3Key && isTempKey(rIn.s3Key)) keys.push(rIn.s3Key);
+    const lSide = ax.left?.photo;
+    if (lSide?.s3Key && isTempKey(lSide.s3Key)) keys.push(lSide.s3Key);
+    const rSide = ax.right?.photo;
+    if (rSide?.s3Key && isTempKey(rSide.s3Key)) keys.push(rSide.s3Key);
   }
 
   // Section 4 damages
@@ -247,9 +251,6 @@ function collectAllTempKeys(m: TMovement): string[] {
 
 /**
  * Finalize all file assets for a movement into submissions/movements/{movementId}/...
- * FIX #1: accepts a collector to push moved final keys immediately (so cleanup can remove them on error).
- * FIX #2: de-dupes repeated TEMP keys using a temp->final cache (so we don't try to move the same temp twice).
- *
  * Returns:
  *  - updatedMovement: payload with all file assets rewritten to final keys
  *  - movedKeys: list of FINAL keys (also pushed into collector eagerly)
@@ -261,25 +262,27 @@ async function finalizeAllMovementAssets(movementId: string, payload: TMovement,
   const pushMoved = (key?: string) => {
     if (!key) return;
     movedKeys.push(key);
-    collector?.push(key); // update caller as we go
+    collector?.push(key);
   };
 
   const clone: TMovement = JSON.parse(JSON.stringify(payload)); // deep clone to mutate safely
+  const cache = new Map<string, IFileAsset>(); // tempKey -> finalized asset
 
-  // Shared cache for this request: tempKey -> finalized asset
-  const cache = new Map<string, IFileAsset>();
-
-  // Section 1 (documents/extras)
+  // Section 1: documents[]
   {
     const docDest = makeEntityFinalPrefix(ns, movementId, ES3Folder.DOCUMENTS);
-    const exDest = makeEntityFinalPrefix(ns, movementId, ES3Folder.EXTRAS);
 
-    clone.documentInfo.attachments = await finalizeVectorWithCache(clone.documentInfo.attachments, docDest, cache, (k) => pushMoved(k));
-
-    clone.extras.attachments = await finalizeVectorWithCache(clone.extras.attachments, exDest, cache, (k) => pushMoved(k));
+    // type-safe rebuild of TDocumentItem[]
+    const nextDocs: NonNullable<TMovement["documents"]> = [];
+    for (const doc of clone.documents ?? []) {
+      // Ensure proper typing
+      const finalizedPhoto = await finalizeAssetWithCache(doc.photo, docDest, cache, (k) => pushMoved(k));
+      nextDocs.push({ ...doc, photo: finalizedPhoto ?? doc.photo });
+    }
+    clone.documents = nextDocs;
   }
 
-  // Section 2 (Angles)
+  // Section 2: Angles
   {
     for (const key of Object.keys(ANGLE_FOLDER_BY_KEY) as Array<keyof TAnglePhotos>) {
       const dest = makeEntityFinalPrefix(ns, movementId, ANGLE_FOLDER_BY_KEY[key]);
@@ -289,21 +292,16 @@ async function finalizeAllMovementAssets(movementId: string, payload: TMovement,
     }
   }
 
-  // Section 3 (Tires)
+  // Section 3: Axle side photos (store under TIRES for continuity)
   {
     const tiresDest = makeEntityFinalPrefix(ns, movementId, ES3Folder.TIRES);
     for (const ax of clone.axles ?? []) {
-      if (ax.left?.outer?.photo) ax.left.outer.photo = (await finalizeAssetWithCache(ax.left.outer.photo, tiresDest, cache, (k) => pushMoved(k))) ?? ax.left.outer.photo;
-
-      if (ax.left?.inner?.photo) ax.left.inner.photo = (await finalizeAssetWithCache(ax.left.inner.photo, tiresDest, cache, (k) => pushMoved(k))) ?? ax.left.inner.photo;
-
-      if (ax.right?.outer?.photo) ax.right.outer.photo = (await finalizeAssetWithCache(ax.right.outer.photo, tiresDest, cache, (k) => pushMoved(k))) ?? ax.right.outer.photo;
-
-      if (ax.right?.inner?.photo) ax.right.inner.photo = (await finalizeAssetWithCache(ax.right.inner.photo, tiresDest, cache, (k) => pushMoved(k))) ?? ax.right.inner.photo;
+      if (ax.left?.photo) ax.left.photo = (await finalizeAssetWithCache(ax.left.photo, tiresDest, cache, (k) => pushMoved(k))) ?? ax.left.photo;
+      if (ax.right?.photo) ax.right.photo = (await finalizeAssetWithCache(ax.right.photo, tiresDest, cache, (k) => pushMoved(k))) ?? ax.right.photo;
     }
   }
 
-  // Section 4 (Damages)
+  // Section 4: Damages
   {
     if (Array.isArray(clone.damages) && clone.damages.length) {
       const dmgDest = makeEntityFinalPrefix(ns, movementId, ES3Folder.DAMAGES);
@@ -328,7 +326,6 @@ type TStatApplied = { yardId: EYardId; dayKey: string; inc: TStatInc };
  */
 async function upsertStatsForMovement(m: TMovement): Promise<TStatApplied | null> {
   const yardId: EYardId | undefined = m.type === EMovementType.INSPECTION ? (m.yardId as EYardId | undefined) : (m.yardId as EYardId);
-
   if (!yardId) return null;
 
   const ts = m.ts ? new Date(m.ts) : new Date();
@@ -364,7 +361,6 @@ async function rollbackYardStats(applied: TStatApplied) {
   if (applied.inc.inspectionCount) dec.inspectionCount = -applied.inc.inspectionCount;
   if (applied.inc.damageCount) dec.damageCount = -applied.inc.damageCount;
 
-  // Only issue the update if there is anything to decrement
   if (Object.keys(dec).length === 0) return;
 
   await YardDayStat.updateOne({ yardId: applied.yardId, dayKey: applied.dayKey }, { $inc: dec });
@@ -379,7 +375,7 @@ export async function POST(req: NextRequest) {
   // Track any YardDayStat change so we can undo it on failure.
   let statsApplied: TStatApplied | null = null;
 
-  // FIX #1: collector of final keys, filled eagerly inside finalizer
+  // Collector of final keys, filled eagerly inside finalizer
   const movedFinalKeys: string[] = [];
 
   try {
@@ -402,7 +398,7 @@ export async function POST(req: NextRequest) {
     // Full early validation (fast-fail before S3/DB)
     validateMovementPayload(body);
 
-    // Yard capacity sanity (we already validated yardId shape above)
+    // Yard capacity sanity
     if (body.type === EMovementType.IN || body.type === EMovementType.OUT) {
       const yardCap = yardCapacityOf(body.yardId);
       assert(typeof yardCap === "number" && yardCap > 0, "Yard capacity not found");
@@ -418,22 +414,20 @@ export async function POST(req: NextRequest) {
         make: body.trailer.make,
         model: body.trailer.model,
         year: body.trailer.year,
-        vin: body.trailer.vin, // optional (sparse unique)
+        vin: body.trailer.vin,
         licensePlate: body.trailer.licensePlate,
         stateOrProvince: body.trailer.stateOrProvince,
         trailerType: body.trailer.trailerType,
         safetyInspectionExpiryDate: new Date(body.trailer.safetyInspectionExpiryDate),
         comments: body.trailer.comments ?? undefined,
 
-        // snapshot defaults (model requires these but also has defaults where applicable)
-        status: ETrailerStatus.OUT, // required; OUT so yardId is not required on create
-        yardId: undefined, // only required when status === IN
-        loadState: ETrailerLoadState.UNKNOWN, // has default in schema; explicit is fine
-        totalMovements: 0, // required; default 0
-        // condition will default to ACTIVE via schema
+        status: ETrailerStatus.OUT,
+        yardId: undefined,
+        loadState: ETrailerLoadState.UNKNOWN,
+        totalMovements: 0,
       };
 
-      // Presence checks — mirror schema requirements
+      // Presence checks
       assert(!!t.trailerNumber, "New trailer.trailerNumber is required");
       assert(!!t.owner, "New trailer.owner is required");
       assert(!!t.make, "New trailer.make is required");
@@ -461,24 +455,21 @@ export async function POST(req: NextRequest) {
     const isNewTrailer = !!createdTrailerId;
 
     if (body.type === EMovementType.IN) {
-      // Block only if it's an existing trailer already IN
       if (!isNewTrailer && trailerDoc.status === ETrailerStatus.IN) {
         throw new AppError(409, "Trailer is already IN. Next movement must be OUT.");
       }
 
-      // Capacity check for the yard (still applies even for new trailers)
       const yardCap = yardCapacityOf(body.yardId as EYardId)!;
       const currentInCount = await Trailer.countDocuments({ status: ETrailerStatus.IN, yardId: body.yardId });
       if (currentInCount >= yardCap) {
         throw new AppError(409, "Yard capacity reached. Cannot move IN another trailer.");
       }
     } else if (body.type === EMovementType.OUT) {
-      // Block only if it's an existing trailer already OUT
       if (!isNewTrailer && trailerDoc.status === ETrailerStatus.OUT) {
         throw new AppError(409, "Trailer is already OUT. Next movement must be IN.");
       }
     }
-    // INSPECTION: always allowed (does not affect in/out)
+    // INSPECTION: always allowed
 
     // Build a movement payload
     const movementInput: TMovement = {
@@ -492,7 +483,7 @@ export async function POST(req: NextRequest) {
       ts: new Date(),
     };
 
-    // Keep a list of TEMP keys referenced (used for cleanup on fail if we had to)
+    // Keep a list of TEMP keys referenced
     const referencedTempKeys = collectAllTempKeys(movementInput);
 
     // 1) Create movement (with potentially temp file refs)
@@ -501,7 +492,6 @@ export async function POST(req: NextRequest) {
 
     // 2) Finalize all files under submissions/movements/{id}/...
     {
-      // Pass collector so cleanup can delete any finals even if we throw mid-way
       const { updatedMovement } = await finalizeAllMovementAssets(createdMovementId, movementInput, movedFinalKeys);
 
       // 3) Update movement with finalized file assets (single pass)
@@ -509,8 +499,7 @@ export async function POST(req: NextRequest) {
         createdMovementId,
         {
           $set: {
-            documentInfo: updatedMovement.documentInfo,
-            extras: updatedMovement.extras,
+            documents: updatedMovement.documents,
             angles: updatedMovement.angles,
             axles: updatedMovement.axles,
             damages: updatedMovement.damages ?? [],
@@ -529,19 +518,17 @@ export async function POST(req: NextRequest) {
         trailerDoc.yardId = body.yardId as EYardId;
         trailerDoc.lastMoveIoTs = movementDoc.ts;
         trailerDoc.loadState = newLoadState;
-        trailerDoc.totalMovements = (trailerDoc.totalMovements ?? 0) + 1; // IN increments
+        trailerDoc.totalMovements = (trailerDoc.totalMovements ?? 0) + 1;
       } else if (body.type === EMovementType.OUT) {
         trailerDoc.status = ETrailerStatus.OUT;
         trailerDoc.yardId = undefined;
         trailerDoc.lastMoveIoTs = movementDoc.ts;
         trailerDoc.loadState = newLoadState;
-        trailerDoc.totalMovements = (trailerDoc.totalMovements ?? 0) + 1; // OUT increments
+        trailerDoc.totalMovements = (trailerDoc.totalMovements ?? 0) + 1;
       } else if (body.type === EMovementType.INSPECTION) {
-        // no in/out change; no lastMoveIoTs change; DO NOT increment totalMovements
         trailerDoc.loadState = newLoadState;
       }
 
-      // IMPORTANT: Do NOT modify trailerDoc.condition here (admin-only elsewhere)
       await trailerDoc.save();
     }
 
@@ -557,7 +544,7 @@ export async function POST(req: NextRequest) {
     return successResponse(200, "Movement created successfully", {
       movement: finalMovement,
       trailer: trailerDoc.toObject({ virtuals: true }),
-      referencedTempKeys, // for debugging/audit if needed
+      referencedTempKeys,
     });
   } catch (error: any) {
     // Cleanup DB documents
@@ -567,7 +554,6 @@ export async function POST(req: NextRequest) {
       console.warn("Failed to delete Movement during cleanup:", createdMovementId, e);
     }
     try {
-      // Only delete a newly-created trailer; never delete an existing one
       if (createdTrailerId) await Trailer.findByIdAndDelete(createdTrailerId);
     } catch (e) {
       console.warn("Failed to delete Trailer during cleanup:", createdTrailerId, e);

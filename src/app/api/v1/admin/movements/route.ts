@@ -15,6 +15,9 @@
  *                       • owner        (from Trailer)
  *                       • carrier.truckNumber
  *                       • carrier.carrierName
+ *                       • carrier.driverName
+ *                       • trip.orderNumber
+ *                       • trip.customerName
  *
  * Query: Filters (all combine)
  *   - type: EMovementType        IN | OUT | INSPECTION
@@ -164,12 +167,20 @@ export async function GET(req: NextRequest) {
         },
       },
       { $addFields: { trailer: { $first: "$trailer" } } },
-      // q search over trailer fields and carrier fields
+      // q search over trailer + carrier + trip fields
       ...(q
         ? [
             {
               $match: {
-                $or: [{ "trailer.trailerNumber": rx(q) }, { "trailer.owner": rx(q) }, { "carrier.truckNumber": rx(q) }, { "carrier.carrierName": rx(q) }],
+                $or: [
+                  { "trailer.trailerNumber": rx(q) },
+                  { "trailer.owner": rx(q) },
+                  { "carrier.truckNumber": rx(q) },
+                  { "carrier.carrierName": rx(q) },
+                  { "carrier.driverName": rx(q) },
+                  { "trip.orderNumber": rx(q) },
+                  { "trip.customerName": rx(q) },
+                ],
               },
             },
           ]

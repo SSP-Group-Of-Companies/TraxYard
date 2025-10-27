@@ -1,7 +1,7 @@
 // src/lib/validation/movementValidation.ts
 import { EYardId } from "@/types/yard.types";
+import { EMovementType, ETrailerBound, EAxleType, ETireCondition, EDamageLocation, EDamageType, EDamageChecklistItem, ECtpatItem, type TAnglePhotos, type TDamageItem } from "@/types/movement.types";
 import { vAssert, isObj, vString, vBoolean, vNumber, vOneOf, vFileish } from "./validationHelpers";
-import type { TAnglePhotos, TDamageItem } from "@/types/movement.types";
 
 /** External yard validator can be injected (keeps this module independent of data). */
 export function isValidYardId(id: any): id is EYardId {
@@ -21,13 +21,24 @@ export function validateAngles(angles: any) {
 }
 
 /* ───────── Section 3: Axles & Tires ───────── */
+// NOTE: per new schema, photo moved to side tires, not tire spec.
 function validateTireSpec(spec: any, prefix: string) {
   vAssert(isObj(spec), `${prefix} is required`);
   vString(spec.brand, `${prefix}.brand`);
   vNumber(spec.psi, `${prefix}.psi`);
   vAssert(spec.psi >= 0 && spec.psi <= 200, `${prefix}.psi must be between 0 and 200`);
-  vOneOf(spec.condition, `${prefix}.condition`, ["ORI", "RE"] as const);
-  vFileish(spec.photo, `${prefix}.photo`);
+  vOneOf(spec.condition, `${prefix}.condition`, Object.values(ETireCondition) as readonly string[]);
+}
+
+function validateSideTires(side: any, prefix: string, isDual: boolean) {
+  vAssert(isObj(side), `${prefix} is required`);
+  vFileish(side.photo, `${prefix}.photo`);
+  validateTireSpec(side.outer, `${prefix}.outer`);
+  if (isDual) {
+    validateTireSpec(side.inner, `${prefix}.inner`);
+  } else if (side.inner) {
+    validateTireSpec(side.inner, `${prefix}.inner`);
+  }
 }
 
 export function validateAxles(axles: any) {
@@ -45,26 +56,18 @@ export function validateAxles(axles: any) {
     vAssert(!seen.has(ax.axleNumber), `${label}.axleNumber must be unique`);
     seen.add(ax.axleNumber);
 
-    vOneOf(ax.type, `${label}.type`, ["SINGLE", "DUAL"] as const);
+    vOneOf(ax.type, `${label}.type`, Object.values(EAxleType) as readonly string[]);
 
     vAssert(isObj(ax.left), `${label}.left is required`);
     vAssert(isObj(ax.right), `${label}.right is required`);
 
-    // Outers required on both sides
-    validateTireSpec(ax.left.outer, `${label}.left.outer`);
-    validateTireSpec(ax.right.outer, `${label}.right.outer`);
-
-    if (ax.type === "DUAL") {
-      validateTireSpec(ax.left.inner, `${label}.left.inner`);
-      validateTireSpec(ax.right.inner, `${label}.right.inner`);
-    } else {
-      if (ax.left.inner) validateTireSpec(ax.left.inner, `${label}.left.inner`);
-      if (ax.right.inner) validateTireSpec(ax.right.inner, `${label}.right.inner`);
-    }
+    const isDual = ax.type === EAxleType.DUAL;
+    validateSideTires(ax.left, `${label}.left`, isDual);
+    validateSideTires(ax.right, `${label}.right`, isDual);
   }
 }
 
-/* ───────── Section 1: Carrier/Trip/Fines/FileBuckets ───────── */
+/* ───────── Section 1: Carrier / Trip / Documents ───────── */
 export function validateCarrier(carrier: any) {
   vAssert(isObj(carrier), "carrier is required");
   vString(carrier.carrierName, "carrier.carrierName");
@@ -83,27 +86,21 @@ export function validateTrip(trip: any) {
   vString(trip.orderNumber, "trip.orderNumber");
 
   vBoolean(trip.isLoaded, "trip.isLoaded");
-  vOneOf(trip.trailerBound, "trip.trailerBound", ["SOUTH_BOUND", "NORTH_BOUND", "LOCAL"] as const);
+  vOneOf(trip.trailerBound, "trip.trailerBound", Object.values(ETrailerBound) as readonly string[]);
 }
 
-export function validateFines(fines: any) {
-  vAssert(isObj(fines), "fines is required");
-  for (const k of ["lights", "tires", "plates", "mudFlaps", "hinges"] as const) {
-    vBoolean(fines[k], `fines.${k}`);
-  }
-  if (fines.notes != null) vAssert(typeof fines.notes === "string", "fines.notes must be string");
-}
-
-export function validateFileBucket(bucket: any, label: string) {
-  vAssert(isObj(bucket), `${label} is required`);
-  if (bucket.notes != null) vAssert(typeof bucket.notes === "string", `${label}.notes must be string`);
-  vAssert(Array.isArray(bucket.attachments), `${label}.attachments must be an array`);
-  for (let i = 0; i < bucket.attachments.length; i++) {
-    vFileish(bucket.attachments[i], `${label}.attachments[${i}]`);
+export function validateDocuments(documents: any) {
+  vAssert(Array.isArray(documents), "documents must be an array");
+  for (let i = 0; i < documents.length; i++) {
+    const it = documents[i];
+    const label = `documents[${i}]`;
+    vAssert(isObj(it), `${label} must be an object`);
+    vString(it.description, `${label}.description`);
+    vFileish(it.photo, `${label}.photo`);
   }
 }
 
-/* ───────── Section 4: Damages ───────── */
+/* ───────── Section 4: Damages & Checklist ───────── */
 export function validateDamages(damages: any) {
   if (damages == null) return;
   vAssert(Array.isArray(damages), "damages must be an array if provided");
@@ -111,28 +108,56 @@ export function validateDamages(damages: any) {
     const d = damages[i] as TDamageItem;
     const label = `damages[${i}]`;
     vAssert(isObj(d), `${label} must be an object`);
-    vString(d.location, `${label}.location`);
-    vString(d.type, `${label}.type`);
-    vBoolean(d.newDamage, `${label}.newDamage`);
+    vOneOf(d.location, `${label}.location`, Object.values(EDamageLocation) as readonly string[]);
+    vOneOf(d.type, `${label}.type`, Object.values(EDamageType) as readonly string[]);
     if ((d as any).comment != null) vAssert(typeof (d as any).comment === "string", `${label}.comment must be string`);
     vFileish((d as any).photo, `${label}.photo`);
+    vBoolean((d as any).newDamage, `${label}.newDamage`);
+  }
+}
+
+export function validateDamageChecklist(checklist: any) {
+  vAssert(isObj(checklist), "damageChecklist is required");
+  for (const k of Object.values(EDamageChecklistItem)) {
+    vBoolean(checklist[k], `damageChecklist.${k}`);
+  }
+}
+
+/* ───────── Section 5: C-TPAT ───────── */
+export function validateCtpat(ctpat: any) {
+  vAssert(isObj(ctpat), "ctpat is required");
+  for (const k of Object.values(ECtpatItem)) {
+    vBoolean(ctpat[k], `ctpat.${k}`);
   }
 }
 
 /* ───────── Top-level payload ───────── */
 export function validateMovementPayload(body: any) {
   vAssert(isObj(body), "Missing JSON body");
-  vOneOf(body.type, "type", ["IN", "OUT", "INSPECTION"] as const);
+
+  // Required basics
+  vOneOf(body.type, "type", Object.values(EMovementType) as readonly string[]);
   vString(body.requestId, "requestId");
 
-  if (body.type === "IN" || body.type === "OUT") {
+  // Trailer reference (string id accepted; server will cast to ObjectId)
+  vString(body.trailerId, "trailerId");
+
+  // Yard requirement: only for IN/OUT
+  if (body.type === EMovementType.IN || body.type === EMovementType.OUT) {
     vAssert(isValidYardId(body.yardId), "Invalid or missing yardId");
   } else if (body.yardId != null) {
     vAssert(isValidYardId(body.yardId), "Invalid yardId");
   }
 
-  if (body.actor) {
-    vAssert(isObj(body.actor), "actor must be an object");
+  // Optional timestamp (server has default)
+  if (body.ts != null) {
+    const t = new Date(body.ts);
+    vAssert(!isNaN(t.valueOf()), "ts must be a valid date if provided");
+  }
+
+  // Actor is OPTIONAL (server will populate). If present, validate shape.
+  if (body.actor != null) {
+    vAssert(isObj(body.actor), "actor must be an object when provided");
     if (body.actor.id != null) vAssert(typeof body.actor.id === "string", "actor.id must be string");
     if (body.actor.displayName != null) vAssert(typeof body.actor.displayName === "string", "actor.displayName must be string");
     if (body.actor.email != null) vAssert(typeof body.actor.email === "string", "actor.email must be string");
@@ -141,9 +166,7 @@ export function validateMovementPayload(body: any) {
   // Section 1
   validateCarrier(body.carrier);
   validateTrip(body.trip);
-  validateFines(body.fines);
-  validateFileBucket(body.documentInfo, "documentInfo");
-  validateFileBucket(body.extras, "extras");
+  validateDocuments(body.documents);
 
   // Section 2
   validateAngles(body.angles);
@@ -152,9 +175,9 @@ export function validateMovementPayload(body: any) {
   validateAxles(body.axles);
 
   // Section 4
-  vAssert(isObj(body.damageChecklist), "damageChecklist is required");
+  validateDamageChecklist(body.damageChecklist);
   validateDamages(body.damages);
 
   // Section 5
-  vAssert(isObj(body.ctpat), "ctpat is required");
+  validateCtpat(body.ctpat);
 }

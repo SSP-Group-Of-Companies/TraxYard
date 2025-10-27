@@ -18,7 +18,7 @@ export type TMovementActor = {
   email?: string;
 };
 
-/* ───────────────────────── Section 1: Carrier / Trip / Fines / Toggles / Docs / Extras ───────────────────────── */
+/* ───────────────────────── Section 1: Carrier / Trip / Documents ───────────────────────── */
 
 export type TCarrierInfo = {
   carrierName: string;
@@ -44,29 +44,14 @@ export type TTripInfo = {
   trailerBound: ETrailerBound; // South/North/Local
 };
 
-export type TFines = {
-  // from screenshot: Lights, Tires, Plates, Mud Flaps, Hinges
-  lights: boolean;
-  tires: boolean;
-  plates: boolean;
-  mudFlaps: boolean;
-  hinges: boolean;
-
-  // future-proof
-  notes?: string;
+export type TDocumentItem = {
+  description: string;
+  photo: IFileAsset; // single file per document item (image/PDF/etc.)
 };
 
-export type TDocumentInfo = {
-  notes?: string;
-  attachments: IFileAsset[]; // images, PDFs, DOCX, etc.
-};
+export type TDocuments = TDocumentItem[];
 
-export type TExtras = {
-  notes?: string;
-  attachments: IFileAsset[]; // images, PDFs, DOCX, etc.
-};
-
-/* ───────────────────────── Section 2: Angle Photos (fixed keys, not an array) ───────────────────────── */
+/* ───────────────────────── Section 2: Angle Photos (fixed keys) ───────────────────────── */
 
 export type TAngleItem = {
   photo: IFileAsset;
@@ -99,10 +84,10 @@ export type TTireSpec = {
   brand: string;
   psi: number;
   condition: ETireCondition;
-  photo: IFileAsset;
 };
 
 export type TSideTires = {
+  photo: IFileAsset; // single side photo covering outer + (optional) inner
   outer: TTireSpec;
   inner?: TTireSpec; // optional when axle type is SINGLE
 };
@@ -114,7 +99,7 @@ export type TAxle = {
   right: TSideTires;
 };
 
-/* ───────────────────────── Section 4: Damages ───────────────────────── */
+/* ───────────────────────── Section 4: Damages & Damage Checklist ───────────────────────── */
 
 /** Trailer damage enums (as provided) */
 export enum EDamageLocation {
@@ -190,7 +175,7 @@ export type TDamageItem = {
   newDamage: boolean; // counts this movement as "damage" if any item has true
 };
 
-/* ───────────────────────── Section 4: Damage Checklist (explicit) ───────────────────────── */
+/* Damage Checklist (explicit) */
 
 export enum EDamageChecklistItem {
   CRANK_SHAFT = "CRANK_SHAFT",
@@ -352,9 +337,7 @@ export type TMovement = {
   // Section 1
   carrier: TCarrierInfo;
   trip: TTripInfo;
-  fines: TFines;
-  documentInfo: TDocumentInfo;
-  extras: TExtras;
+  documents: TDocuments;
 
   // Section 2
   angles: TAnglePhotos;
