@@ -18,6 +18,7 @@ import {
   TAxle,
   TDamageChecklist,
   TCtpatChecklist,
+  // TDocumentItem type exists in types, but we don't need to import it for schema
 } from "@/types/movement.types";
 import { EYardId } from "@/types/yard.types";
 import { enumMsg, trim } from "@/lib/utils/stringUtils";
@@ -30,6 +31,7 @@ export type TMovementDoc = HydratedDocument<TMovement>;
 
 const AngleItemSchema = new Schema<TAngleItem>({ photo: { type: fileAssetSchema, required: [true, "Angle photo is required."] } }, { _id: false });
 
+// NOTE: photo moved off TTireSpec onto TSideTires
 const TireSpecSchema = new Schema<TTireSpec>(
   {
     brand: { type: String, required: [true, "Tire brand is required."], trim: true },
@@ -42,13 +44,13 @@ const TireSpecSchema = new Schema<TTireSpec>(
         message: enumMsg("Tire condition", Object.values(ETireCondition) as string[]),
       },
     },
-    photo: { type: fileAssetSchema, required: [true, "Tire photo is required."] },
   },
   { _id: false }
 );
 
 const SideTiresSchema = new Schema<TSideTires>(
   {
+    photo: { type: fileAssetSchema, required: [true, "Side tires photo is required."] },
     outer: { type: TireSpecSchema, required: [true, "Outer tire is required."] },
     inner: { type: TireSpecSchema }, // optional if SINGLE axle
   },
@@ -109,27 +111,11 @@ const TripSchema = new Schema(
   { _id: false }
 );
 
-const FinesSchema = new Schema(
+// NEW: documents[] replaces documentInfo/extras/fines buckets
+const DocumentItemSchema = new Schema(
   {
-    lights: { type: Boolean, required: [true, "fines.lights is required."] },
-    tires: { type: Boolean, required: [true, "fines.tires is required."] },
-    plates: { type: Boolean, required: [true, "fines.plates is required."] },
-    mudFlaps: { type: Boolean, required: [true, "fines.mudFlaps is required."] },
-    hinges: { type: Boolean, required: [true, "fines.hinges is required."] },
-    notes: { type: String, set: trim },
-  },
-  { _id: false }
-);
-
-const FileBucketSchema = new Schema(
-  {
-    notes: { type: String, set: trim },
-    attachments: {
-      type: [fileAssetSchema],
-      required: [true, "attachments array is required."],
-      default: [],
-      validate: { validator: (arr: unknown[]) => Array.isArray(arr), message: "attachments must be an array." },
-    },
+    description: { type: String, required: [true, "Document description is required."], trim: true },
+    photo: { type: fileAssetSchema, required: [true, "Document photo is required."] },
   },
   { _id: false }
 );
@@ -283,9 +269,14 @@ const MovementSchema = new Schema<TMovement>(
     // Section 1
     carrier: { type: CarrierSchema, required: [true, "carrier is required."] },
     trip: { type: TripSchema, required: [true, "trip is required."] },
-    fines: { type: FinesSchema, required: [true, "fines is required."] },
-    documentInfo: { type: FileBucketSchema, required: [true, "documentInfo is required."] },
-    extras: { type: FileBucketSchema, required: [true, "extras is required."] },
+
+    // NEW: documents[] replaces documentInfo/extras/fines
+    documents: {
+      type: [DocumentItemSchema],
+      required: [true, "documents array is required."],
+      default: [],
+      validate: { validator: (arr: unknown[]) => Array.isArray(arr), message: "documents must be an array." },
+    },
 
     // Section 2
     angles: { type: AnglesSchema, required: [true, "angles are required."] },
