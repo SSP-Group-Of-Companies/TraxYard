@@ -35,6 +35,7 @@ import { Boxes, TrendingUp } from "lucide-react";
  * @property {number | null} [max] - Maximum capacity limit
  * @property {boolean} [loading=false] - Loading state indicator
  * @property {string} [className] - Additional CSS classes
+ * @property {function} [onClick] - Click handler for opening IN yard modal
  */
 type Props = {
   yardName?: string | null;
@@ -42,6 +43,7 @@ type Props = {
   max?: number | null;
   loading?: boolean;
   className?: string;
+  onClick?: () => void;
 };
 
 /**
@@ -77,6 +79,7 @@ export default function CapacityCard({
   max,
   loading = false,
   className,
+  onClick,
 }: Props) {
   // Normalize values with fallbacks
   const cur = current ?? 0;
@@ -101,9 +104,20 @@ export default function CapacityCard({
         "rounded-2xl p-4 sm:p-5 shadow-1",
         "bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60",
         "ring-1 ring-[color:var(--color-outline)]",
+        onClick ? "cursor-pointer hover:shadow-md transition" : "",
         className ?? "",
       ].join(" ")}
       aria-label="Current yard capacity"
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (!onClick) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
     >
       <div className="flex items-start gap-4">
         {/* Icon */}

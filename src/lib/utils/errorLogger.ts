@@ -26,8 +26,8 @@ class ErrorLogger {
       stack: error.stack,
       context,
       timestamp: Date.now(),
-      userAgent: navigator.userAgent,
-      url: window.location.href,
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Server',
+      url: typeof window !== 'undefined' ? window.location.href : 'Server',
       ...metadata
     };
 

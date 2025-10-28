@@ -44,6 +44,7 @@ import DailyCounts from "./DailyCounts";
 import TrailerSearchModal from "./TrailerSearchModal";
 import WeatherChip from "./WeatherChip";
 import CapacityCard from "./CapacityCard";
+import InYardModal from "./InYardModal";
 
 /**
  * HomeClient Component
@@ -79,6 +80,9 @@ export default function HomeClient() {
 
   // Track active action mode for modal management
   const [mode, setMode] = useState<"IN" | "OUT" | "INSPECTION" | null>(null);
+  
+  // Track IN yard modal state
+  const [showInYard, setShowInYard] = useState(false);
 
   /**
    * Generate time-based greeting message
@@ -139,6 +143,7 @@ export default function HomeClient() {
             current={isLoading ? null : data?.yard?.capacity.current ?? 0}
             max={isLoading ? null : data?.yard?.capacity.max ?? 0}
             loading={isLoading}
+            onClick={() => setShowInYard(true)}
           />
         </motion.div>
 
@@ -158,11 +163,16 @@ export default function HomeClient() {
         </motion.div>
       </motion.div>
 
-      {/* ================= Modal ================= */}
+      {/* ================= Modals ================= */}
       <TrailerSearchModal
         open={mode !== null}
         mode={mode ?? "IN"}
         onClose={() => setMode(null)}
+      />
+      
+      <InYardModal
+        open={showInYard}
+        onClose={() => setShowInYard(false)}
       />
     </motion.section>
   );
