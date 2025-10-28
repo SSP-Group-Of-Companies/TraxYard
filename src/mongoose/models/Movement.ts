@@ -318,6 +318,14 @@ const MovementSchema = new Schema<TMovement>(
 
 MovementSchema.index({ trailer: 1, ts: -1 }, { name: "by_trailer_ts" });
 MovementSchema.index({ type: 1, yardId: 1, ts: -1 }, { name: "by_type_yard_ts" });
+MovementSchema.index({ "trip.customerName": 1 }, { name: "by_customerName" });
+MovementSchema.index(
+  { yardId: 1, ts: -1 },
+  {
+    name: "partial_yard_ts_newDamage",
+    partialFilterExpression: { "damages.newDamage": true },
+  }
+);
 
 /* ───────────────── Duplicate-key -> friendly errors ───────────────── */
 

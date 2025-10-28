@@ -125,7 +125,22 @@ const TrailerSchema = new Schema<TTrailer>(
   }
 );
 
-// Compound unique: licensePlate + stateOrProvince (case-insensitive via setters)
+// Indexes
+// Fast counts & inventory
+TrailerSchema.index({ yardId: 1, status: 1 }, { name: "by_yard_status" });
+
+// Inventory breakdown buckets
+TrailerSchema.index({ yardId: 1, status: 1, loadState: 1 }, { name: "by_yard_status_load" });
+
+// Admin list: common default sort
+TrailerSchema.index({ yardId: 1, status: 1, updatedAt: -1 }, { name: "list_by_yard_status_updated" });
+
+// (Optional) Expiry filtering
+TrailerSchema.index({ safetyInspectionExpiryDate: 1 }, { name: "by_expiry" });
+// Or, if typically combined with yard/status:
+TrailerSchema.index({ yardId: 1, status: 1, safetyInspectionExpiryDate: 1 }, { name: "by_yard_status_expiry" });
+
+// Unique trailer identity: licensePlate + stateOrProvince
 TrailerSchema.index({ licensePlate: 1, stateOrProvince: 1 }, { unique: true, name: "uniq_plate_jurisdiction" });
 
 /** Virtual: latest IN/OUT movement (excludes INSPECTION). */
