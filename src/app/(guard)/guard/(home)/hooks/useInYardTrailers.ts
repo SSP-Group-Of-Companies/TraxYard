@@ -1,38 +1,15 @@
-/**
- * @fileoverview useInYardTrailers Hook - TraxYard Guard Interface
- * 
- * Custom hook for fetching and managing trailers currently IN the active yard.
- * Features debounced search, pagination, and cancelable fetch operations.
- * 
- * @author Faruq Adebayo Atanda
- * @owner SSP Group of Companies
- * @created 2025
- * @version 1.0.0
- * 
- * @dependencies
- * - React: Core framework functionality with hooks
- * - TTrailer: Trailer type definitions
- * - EYardId: Yard identifier types
- * 
- * @features
- * - Debounced search with 250ms delay
- * - Pagination support with configurable page size
- * - Cancelable fetch operations to prevent race conditions
- * - Real-time data updates with refetch capability
- * - Error handling and loading states
- * - Optimized re-renders with proper dependency management
- */
-
 "use client";
 
+/**
+ * useInYardTrailers — unified with global refresh bus
+ */
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { TTrailerDto, TTrailer } from "@/types/Trailer.types";
+import type { TTrailerDto, TTrailerUI } from "@/types/frontend/trailer.dto";
 import { EYardId } from "@/types/yard.types";
 import { mapTrailerDto } from "@/lib/mappers/mapTrailerDto";
+import { refreshBus } from "@/lib/refresh/refreshBus";
 
-/**
- * Pagination and metadata interface
- */
 type Meta = {
   page: number;
   pageSize: number;
@@ -45,11 +22,8 @@ type Meta = {
   filters?: Record<string, unknown>;
 };
 
-/**
- * Hook return type interface
- */
 type Result = {
-  rows: TTrailer[];
+  rows: TTrailerUI[];
   meta: Meta | null;
   loading: boolean;
   error: Error | null;
@@ -58,195 +32,146 @@ type Result = {
   refetch: () => void;
 };
 
-/**
- * useInYardTrailers Hook
- * 
- * Fetches trailers currently IN the specified yard with search and pagination.
- * Provides debounced search, cancelable fetch, and real-time updates.
- * 
- * @param {EYardId} yardId - The yard to fetch trailers from
- * @param {Object} opts - Optional configuration
- * @param {number} [opts.pageSize=20] - Number of items per page
- * @returns {Result} Hook state and control functions
- * 
- * @performance
- * - Debounced search prevents excessive API calls
- * - Cancelable fetch prevents race conditions
- * - Memoized URL construction prevents unnecessary re-renders
- * - AbortController cleanup prevents memory leaks
- * 
- * @example
- * const { rows, meta, loading, setQuery, setPage } = useInYardTrailers(EYardId.YARD1);
- * 
- * // Search for trailers
- * setQuery("TRL-1001");
- * 
- * // Navigate pages
- * setPage(2);
- */
+class HttpError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
+function unwrapTrailers(json: any): { data: TTrailerDto[]; meta: Meta | null } {
+  const payload = json?.data ?? json ?? {};
+  const rows = Array.isArray(payload?.data)
+    ? payload.data
+    : Array.isArray(payload?.rows)
+    ? payload.rows
+    : Array.isArray(payload)
+    ? payload
+    : [];
+  return {
+    data: rows as TTrailerDto[],
+    meta: (payload?.meta ?? null) as Meta | null,
+  };
+}
+
 export function useInYardTrailers(
   yardId: EYardId,
-  opts?: { pageSize?: number }
+  opts?: { pageSize?: number; enabled?: boolean }
 ): Result {
   const pageSize = opts?.pageSize ?? 20;
+  const enabled = opts?.enabled ?? true;
+
   const [page, setPage] = useState(1);
-  const [query, setQuery] = useState("");
-  const [rows, setRows] = useState<TTrailer[]>([]);
+  const [rawQuery, setRawQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+
+  const [rows, setRows] = useState<TTrailerUI[]>([]);
   const [meta, setMeta] = useState<Meta | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  
-  // Refs for cleanup and debouncing
-  const abortRef = useRef<AbortController | null>(null);
-  const debRef = useRef<number | null>(null);
 
-  /**
-   * Construct API URL with current parameters
-   * @performance Memoized to prevent unnecessary re-renders
-   */
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedQuery(rawQuery.trim()), 250);
+    return () => window.clearTimeout(t);
+  }, [rawQuery]);
+
   const url = useMemo(() => {
-    // Check if we're in browser environment
-    if (typeof window === "undefined") {
-      return "";
-    }
-    
+    if (typeof window === "undefined") return "";
     const u = new URL("/api/v1/guard/trailers", window.location.origin);
     u.searchParams.set("status", "IN");
     u.searchParams.set("yardId", yardId);
     u.searchParams.set("page", String(page));
     u.searchParams.set("limit", String(pageSize));
-    if (query.trim()) {
-      u.searchParams.set("q", query.trim());
-    }
+    if (debouncedQuery) u.searchParams.set("q", debouncedQuery);
     return u.toString();
-  }, [yardId, page, pageSize, query]);
+  }, [yardId, page, pageSize, debouncedQuery]);
 
-  /**
-   * Fetch trailers from API
-   * @performance Uses AbortController for cancelable requests
-   */
+  const doFetch = useCallback(async (endpoint: string, signal: AbortSignal) => {
+    const r = await fetch(endpoint, {
+      signal,
+      credentials: "include",
+      cache: "no-store",
+    });
+    if (!r.ok) {
+      let msg = `HTTP ${r.status}`;
+      try {
+        const errJson = await r.json();
+        if (errJson?.message) msg = errJson.message;
+      } catch {}
+      throw new HttpError(r.status, msg);
+    }
+    const json = await r.json();
+    return unwrapTrailers(json);
+  }, []);
+
   const load = useCallback(() => {
-    // Skip if URL is empty (SSR)
     if (!url) {
       setLoading(false);
       return;
     }
-    
-    // Cancel previous request
     abortRef.current?.abort();
     const ac = new AbortController();
     abortRef.current = ac;
-    
+
     setLoading(true);
     setError(null);
 
-    const doFetch = async (endpoint: string) => {
-      const r = await fetch(endpoint, { signal: ac.signal });
-      if (!r.ok) {
-        let msg = `HTTP ${r.status}`;
-        try {
-          const errJson = await r.json();
-          if (errJson?.message) msg = errJson.message;
-        } catch {}
-        throw new Error(msg);
-      }
-      return r.json() as Promise<{ data?: TTrailerDto[]; meta?: Meta }>;
-    };
-
     (async () => {
       try {
-        if (process.env.NODE_ENV !== "production") {
-          console.debug("[IN-YARD] primary:", url);
-        }
-        const primary = await doFetch(url);
-        if (process.env.NODE_ENV !== "production") {
-          console.debug("[IN-YARD] primary success:", primary);
-        }
-        const normalized: TTrailer[] = (primary.data ?? []).map(mapTrailerDto);
-        setRows(normalized);
-        setMeta(primary.meta ?? null);
-        setError(null); // Clear any previous errors
-        setLoading(false);
-        return; // Exit early on success
-      } catch (e1) {
-        if (process.env.NODE_ENV !== "production") {
-          console.debug("[IN-YARD] primary failed:", e1);
-        }
-        // fallback to /api/v1/trailers if guard route isn't present in this env
-        const u2 = new URL(url);
-        if (u2.pathname.includes("/api/v1/guard/trailers")) {
-          u2.pathname = u2.pathname.replace("/api/v1/guard/trailers", "/api/v1/trailers");
-          if (process.env.NODE_ENV !== "production") {
-            console.debug("[IN-YARD] fallback:", u2.toString());
-          }
-          try {
-            const fb = await doFetch(u2.toString());
-            if (process.env.NODE_ENV !== "production") {
-              console.debug("[IN-YARD] fallback success:", fb);
+        const { data, meta } = await doFetch(url, ac.signal);
+        setRows(data.map(mapTrailerDto));
+        setMeta(meta);
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+        if (
+          err instanceof HttpError &&
+          (err.status === 404 || err.status === 405)
+        ) {
+          const u2 = new URL(url);
+          u2.pathname = u2.pathname.replace(
+            "/api/v1/guard/trailers",
+            "/api/v1/trailers"
+          );
+          if (u2.pathname !== new URL(url).pathname) {
+            try {
+              const { data, meta } = await doFetch(u2.toString(), ac.signal);
+              setRows(data.map(mapTrailerDto));
+              setMeta(meta);
+              return;
+            } catch (err2: any) {
+              if (err2?.name === "AbortError") return;
+              setError(err2 as Error);
+              return;
             }
-            const normalized: TTrailer[] = (fb.data ?? []).map(mapTrailerDto);
-            setRows(normalized);
-            setMeta(fb.meta ?? null);
-            setError(null); // Clear any previous errors
-            setLoading(false);
-            return; // Exit early on fallback success
-          } catch (e2) {
-            if (process.env.NODE_ENV !== "production") {
-              console.debug("[IN-YARD] fallback failed:", e2);
-            }
-            setError(e2 as Error);
-            setLoading(false);
-            return;
           }
-        } else {
-          setError(e1 as Error);
-          setLoading(false);
-          return;
         }
+        setError(err as Error);
+      } finally {
+        if (abortRef.current === ac) setLoading(false);
       }
     })();
-  }, [url]);
+  }, [url, doFetch]);
 
-  // Initial load and dependency changes
+  // initial load
   useEffect(() => {
     load();
     return () => abortRef.current?.abort();
-  }, [url, load]);
+  }, [load]);
 
-  /**
-   * Debounced query setter
-   * @performance 250ms debounce prevents excessive API calls
-   */
-  const setQueryDebounced = (q: string) => {
-    setQuery(q);
-    setPage(1); // Reset to first page when searching
-    
-    // Clear existing timeout
-    if (debRef.current) {
-      window.clearTimeout(debRef.current);
-    }
-    
-    // Set new timeout for debounced search
-    debRef.current = window.setTimeout(load, 250);
-  };
-
-  // Cleanup on unmount
+  // subscribe to the global refresh clock only when enabled (modal open)
   useEffect(() => {
-    return () => {
-      abortRef.current?.abort();
-      if (debRef.current) {
-        window.clearTimeout(debRef.current);
-      }
-    };
-  }, []);
+    if (!enabled) return;
+    const unsubscribe = refreshBus.subscribe(load);
+    return () => unsubscribe();
+  }, [enabled, load]);
 
-  return {
-    rows,
-    meta,
-    loading,
-    error,
-    setPage,
-    setQuery: setQueryDebounced,
-    refetch: load,
+  const setQuery = (q: string) => {
+    setRawQuery(q);
+    setPage(1);
   };
+
+  return { rows, meta, loading, error, setPage, setQuery, refetch: load };
 }
