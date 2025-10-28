@@ -12,7 +12,12 @@
  *   - status: enum            IN | OUT                (if omitted => both)
  *   - page: number            default 1   (min 1)
  *   - limit: number           default 20  (min 1, max 100)
- *   - q: string               matches trailerNumber OR lastMoveIo.carrier.truckNumber
+ *   - q: string               case-insensitive match on:
+ *                             • trailerNumber
+ *                             • owner
+ *                             • vin
+ *                             • licensePlate
+ *                             • make
  *   - trailerType: enum       DRY_VAN | FLATBED | FLATBED_ROLL_TITE | STEP_DECK | STEP_DECK_ROLL_TITE
  *   - condition: enum         ACTIVE | OUT_OF_SERVICE | DAMAGED
  *   - loadState: enum         EMPTY | LOADED | UNKNOWN
@@ -39,7 +44,10 @@
  *   /api/v1/admin/trailers                          // all trailers, all yards
  *   /api/v1/admin/trailers?yardId=YARD2             // only YARD2
  *   /api/v1/admin/trailers?status=OUT               // all OUT trailers across yards
- *   /api/v1/admin/trailers?q=TRK-102                // search by truckNumber
+ *   /api/v1/admin/trailers?q=TRL-1001               // matches trailerNumber
+ *   /api/v1/admin/trailers?q=acme                   // matches owner or make
+ *   /api/v1/admin/trailers?q=1GRAA0620BW123456      // matches vin
+ *   /api/v1/admin/trailers?q=ABCZ-912               // matches licensePlate
  *   /api/v1/admin/trailers?expiredOnly=true&sortBy=licensePlate&sortDir=asc
  *   /api/v1/admin/trailers?yardId=YARD1&status=IN&loadState=EMPTY
  */
@@ -135,11 +143,13 @@ export async function GET(req: NextRequest) {
       { $addFields: { lastMoveIo: { $first: "$lastMoveIo" } } },
     ];
 
-    // q only: trailerNumber OR lastMoveIo.carrier.truckNumber
+    // q: trailerNumber | owner | vin | licensePlate | make (case-insensitive via rx)
     if (q) {
       const r = rx(q);
       pipeline.push({
-        $match: { $or: [{ trailerNumber: r }, { "lastMoveIo.carrier.truckNumber": r }] },
+        $match: {
+          $or: [{ trailerNumber: r }, { owner: r }, { vin: r }, { licensePlate: r }, { make: r }],
+        },
       });
     }
 

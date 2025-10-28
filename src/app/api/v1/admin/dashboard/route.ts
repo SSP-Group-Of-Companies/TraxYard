@@ -16,6 +16,7 @@
  *   • Weather summary (Open-Meteo with icon hints)
  *   • 7-day damage activity trend (and previous-week delta)
  *   • Paginated list of movements with new damages during that 7-day window
+ *   • Distinct movement dates (YYYY-MM-DD in APP_TZ) for damaged movements
  *
  *  Query Parameters
  *  ----------------
@@ -36,10 +37,39 @@
  *     "ok": true,
  *     "data": {
  *       yard: { id, name, capacity: { current, max }, inventory: { empty, loaded, unknown } },
- *       stats: { inCount, outCount, inspectionCount, damageCount, ... },
- *       weather: {...},
- *       damageActivity: { series, total, prevWindowTotal, delta },
- *       damagedMovements: { rows: [...], meta: {...} }
+ *       stats: { inCount, outCount, inspectionCount, damageCount, ... } | null,
+ *       weather: {...} | null,
+ *       damageActivity: {
+ *         window: { startDayKey, endDayKey },
+ *         series: Array<{ dayKey: string, damageCount: number }>,
+ *         total: number,
+ *         prevWindowTotal: number,
+ *         delta: number
+ *       },
+ *       damagedMovements: {
+ *         rows: Array<{
+ *           _id: string,
+ *           ts: string,             // Date
+ *           tsIso: string,          // ISO string (UTC)
+ *           dayKey: string,         // YYYY-MM-DD in APP_TZ
+ *           type: "IN" | "OUT",
+ *           yardId: "YARD1" | "YARD2" | "YARD3",
+ *           carrier?: { truckNumber?: string },
+ *           damages: Array<{ location, type, comment?, photo, newDamage: true }>,
+ *           trailer: string,        // Trailer ObjectId
+ *           trailerNumber?: string,
+ *           trailerOwner?: string,
+ *           trailerType?: string
+ *         }>,
+ *         dateKeys: string[],       // Distinct YYYY-MM-DDs with new damages in window
+ *         meta: {
+ *           page, pageSize, total, totalPages, hasPrev, hasNext,
+ *           sortBy, sortDir,
+ *           yardId,
+ *           anchorDayKey,
+ *           window: { startUtc, endExclusiveUtc }
+ *         }
+ *       }
  *     }
  *   }
  * -----------------------------------------------------------------------------
@@ -61,14 +91,12 @@ import { EYardId } from "@/types/yard.types";
 import { EMovementType } from "@/types/movement.types";
 import { getOpenMeteoCurrent } from "@/lib/utils/weather/openMeteo";
 
-import { parseIntClamp, parseEnumParam } from "@/lib/utils/queryUtils";
+import { parseEnumParam, parsePagination, buildMeta } from "@/lib/utils/queryUtils";
 import { fromZonedTime } from "date-fns-tz";
 import { addDays, startOfDay } from "date-fns";
 
 /** Shift a YYYY-MM-DD dayKey by N calendar days in APP_TZ (no DST drift). */
 function shiftDayKey(dayKey: string, days: number): string {
-  // Build a local (APP_TZ) midnight for the given dayKey, add calendar days in local time,
-  // then re-key back to YYYY-MM-DD in APP_TZ.
   const shiftedLocalStartUtc = fromZonedTime(startOfDay(addDays(new Date(`${dayKey}T00:00:00`), days)), APP_TZ);
   return toDayKey(shiftedLocalStartUtc, APP_TZ);
 }
@@ -86,8 +114,7 @@ export async function GET(req: NextRequest) {
     if (!yard) throw new AppError(404, `Unknown yardId: ${yardId}`);
 
     const dateParam = url.searchParams.get("date");
-    const page = parseIntClamp(url.searchParams.get("page"), 1, 1, Number.MAX_SAFE_INTEGER);
-    const limit = parseIntClamp(url.searchParams.get("limit"), 10, 1, 100);
+    const { page, limit, skip } = parsePagination(url.searchParams.get("page"), url.searchParams.get("limit"), 100);
 
     const anchorDayKey = dateParam?.match(/^\d{4}-\d{2}-\d{2}$/) ? dateParam : toDayKey(new Date(), APP_TZ);
 
@@ -102,22 +129,28 @@ export async function GET(req: NextRequest) {
     const maxCapacity = yard.capacity ?? 0;
 
     const [currentInCount, inventoryBuckets, theDayStat, last7Stats, prev7Stats, weather, damagedAgg] = await Promise.all([
+      // current IN count
       Trailer.countDocuments({ yardId, status: ETrailerStatus.IN }),
 
+      // inventory buckets
       Trailer.aggregate([{ $match: { yardId, status: ETrailerStatus.IN } }, { $group: { _id: "$loadState", count: { $sum: 1 } } }]),
 
+      // anchor-day stats
       YardDayStat.findOne({ yardId, dayKey: anchorDayKey }).lean(),
 
+      // last 7 (current window) damage counts
       YardDayStat.find({ yardId, dayKey: { $gte: start7, $lte: end7 } })
         .select({ dayKey: 1, damageCount: 1 })
         .sort({ dayKey: 1 })
         .lean(),
 
+      // previous 7 window damage counts
       YardDayStat.find({ yardId, dayKey: { $gte: prevStart7, $lte: prevEnd7 } })
         .select({ dayKey: 1, damageCount: 1 })
         .sort({ dayKey: 1 })
         .lean(),
 
+      // weather (nullable)
       (async () => {
         const loc = yard.location;
         if (loc?.latitude != null && loc?.longitude != null) {
@@ -126,6 +159,7 @@ export async function GET(req: NextRequest) {
         return null;
       })(),
 
+      // damaged movements with newDamage=true within window
       Movement.aggregate([
         {
           $match: {
@@ -133,6 +167,15 @@ export async function GET(req: NextRequest) {
             ts: { $gte: windowStartUtc, $lt: windowEndExclusiveUtc },
             type: { $in: [EMovementType.IN, EMovementType.OUT] },
             damages: { $elemMatch: { newDamage: true } },
+          },
+        },
+        // compute dayKey in APP_TZ and keep an ISO string too
+        {
+          $addFields: {
+            dayKey: {
+              $dateToString: { format: "%Y-%m-%d", date: "$ts", timezone: APP_TZ },
+            },
+            tsIso: { $dateToString: { format: "%Y-%m-%dT%H:%M:%S.%LZ", date: "$ts" } },
           },
         },
         { $sort: { ts: -1, _id: 1 } },
@@ -149,6 +192,8 @@ export async function GET(req: NextRequest) {
         {
           $project: {
             ts: 1,
+            tsIso: 1,
+            dayKey: 1,
             type: 1,
             yardId: 1,
             "carrier.truckNumber": 1,
@@ -167,22 +212,25 @@ export async function GET(req: NextRequest) {
         },
         {
           $facet: {
-            rows: [{ $skip: (page - 1) * limit }, { $limit: limit }],
+            rows: [{ $skip: skip }, { $limit: limit }],
             total: [{ $count: "count" }],
+            dateKeys: [{ $group: { _id: "$dayKey" } }, { $sort: { _id: 1 } }, { $project: { _id: 0, dayKey: "$_id" } }],
           },
         },
         {
           $project: {
             rows: 1,
             total: { $ifNull: [{ $arrayElemAt: ["$total.count", 0] }, 0] },
+            dateKeys: "$dateKeys.dayKey",
           },
         },
       ]).allowDiskUse(true),
     ]);
 
+    // inventory summary
     const inventory = (() => {
       const map = new Map<string, number>();
-      for (const b of inventoryBuckets as any[]) map.set(b._id ?? "UNKNOWN", b.count ?? 0);
+      for (const b of (inventoryBuckets as any[]) ?? []) map.set(b._id ?? "UNKNOWN", b.count ?? 0);
       return {
         empty: map.get(ETrailerLoadState.EMPTY) ?? 0,
         loaded: map.get(ETrailerLoadState.LOADED) ?? 0,
@@ -190,13 +238,31 @@ export async function GET(req: NextRequest) {
       };
     })();
 
-    const series = (last7Stats || []).map((s: any) => ({ dayKey: s.dayKey, damageCount: s.damageCount ?? 0 }));
+    // damage activity series and deltas
+    const series = (last7Stats || []).map((s: any) => ({
+      dayKey: s.dayKey,
+      damageCount: s.damageCount ?? 0,
+    }));
     const total = series.reduce((acc: number, s: any) => acc + (s.damageCount ?? 0), 0);
     const prevTotal = (prev7Stats || []).reduce((acc: number, s: any) => acc + (s.damageCount ?? 0), 0);
     const delta = total - prevTotal;
 
-    const damagedBlock = (damagedAgg?.[0] as any) || { rows: [], total: 0 };
-    const totalPages = Math.max(Math.ceil((damagedBlock.total as number) / limit), 1);
+    const damagedBlock = (damagedAgg?.[0] as any) || { rows: [], total: 0, dateKeys: [] };
+
+    // meta via shared helper
+    const meta = buildMeta({
+      page,
+      pageSize: limit,
+      total: damagedBlock.total as number,
+      sortBy: "ts",
+      sortDir: -1,
+      filters: { yardId, anchorDayKey },
+      extra: {
+        yardId,
+        anchorDayKey,
+        window: { startUtc: windowStartUtc, endExclusiveUtc: windowEndExclusiveUtc },
+      },
+    });
 
     return successResponse(200, "admin yard dashboard data", {
       yard: {
@@ -216,17 +282,8 @@ export async function GET(req: NextRequest) {
       },
       damagedMovements: {
         rows: damagedBlock.rows,
-        meta: {
-          yardId,
-          anchorDayKey,
-          window: { startUtc: windowStartUtc, endExclusiveUtc: windowEndExclusiveUtc },
-          page,
-          pageSize: limit,
-          total: damagedBlock.total,
-          totalPages,
-          hasPrev: page > 1,
-          hasNext: page < totalPages,
-        },
+        dateKeys: damagedBlock.dateKeys ?? [],
+        meta,
       },
     });
   } catch (err) {
