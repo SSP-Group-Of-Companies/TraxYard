@@ -14,8 +14,7 @@ const TrailerSchema = new Schema<TTrailer>(
     trailerNumber: {
       type: String,
       required: [true, "Trailer number is required."],
-      index: true,
-      unique: true,
+      unique: true, // unique index defined by Mongoose
       trim: true,
     },
     owner: { type: String, required: [true, "Owner is required."], trim: true },
@@ -30,23 +29,23 @@ const TrailerSchema = new Schema<TTrailer>(
     vin: {
       type: String,
       unique: true,
-      sparse: true, // allows multiple docs with missing vin
+      sparse: true,
       set: (v: string | undefined | null) => {
         const t = upperTrim(v);
-        return t || undefined; // empty -> undefined so sparse unique won’t bite
+        return t || undefined;
       },
     },
     licensePlate: {
       type: String,
       required: [true, "License plate is required."],
       trim: true,
-      set: upperTrim, // keep case normalization
+      set: upperTrim,
     },
     stateOrProvince: {
       type: String,
       required: [true, "License plate jurisdiction (state/province) is required."],
       trim: true,
-      set: upperTrim, // keep case normalization
+      set: upperTrim,
     },
     trailerType: {
       type: String,
@@ -56,7 +55,7 @@ const TrailerSchema = new Schema<TTrailer>(
         message: enumMsg("Trailer type", Object.values(ETrailerType) as string[]),
       },
       trim: true,
-      set: upperTrim, // store enum values in canonical UPPER_SNAKE
+      set: upperTrim,
     },
     safetyInspectionExpiryDate: {
       type: Date,
@@ -90,8 +89,7 @@ const TrailerSchema = new Schema<TTrailer>(
     /** Latest IN/OUT movement timestamp (excludes INSPECTION). */
     lastMoveIoTs: {
       type: Date,
-      index: true,
-      // not required; set when the first IN/OUT happens
+      // sorting index is declared in the index section
     },
 
     loadState: {
@@ -125,8 +123,24 @@ const TrailerSchema = new Schema<TTrailer>(
   }
 );
 
-// Compound unique: licensePlate + stateOrProvince (case-insensitive via setters)
+/* ───────────────────────── Indexes ───────────────────────── */
+// fast inventory buckets
+TrailerSchema.index({ yardId: 1, status: 1, loadState: 1 }, { name: "by_yard_status_load" });
+
+// common admin/guard list sort when filtered by yard/status
+TrailerSchema.index({ yardId: 1, status: 1, updatedAt: -1 }, { name: "list_by_yard_status_updated" });
+
+// global expiry queries (expiredOnly without yard/status)
+TrailerSchema.index({ safetyInspectionExpiryDate: 1 }, { name: "by_expiry" });
+
+// expiry when filtered by yard/status
+TrailerSchema.index({ yardId: 1, status: 1, safetyInspectionExpiryDate: 1 }, { name: "by_yard_status_expiry" });
+
+// unique plate+jurisdiction business rule
 TrailerSchema.index({ licensePlate: 1, stateOrProvince: 1 }, { unique: true, name: "uniq_plate_jurisdiction" });
+
+// sort/search by recent I/O (admin/guard lists & details)
+TrailerSchema.index({ lastMoveIoTs: -1 }, { name: "by_lastMoveTs" });
 
 /** Virtual: latest IN/OUT movement (excludes INSPECTION). */
 TrailerSchema.virtual("lastMoveIo", {

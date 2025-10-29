@@ -237,14 +237,14 @@ const MovementSchema = new Schema<TMovement>(
         values: Object.values(EMovementType) as string[],
         message: enumMsg("Movement type", Object.values(EMovementType) as string[]),
       },
-      index: true,
+      // index handled via compound indexes section
     },
 
     trailer: {
       type: Schema.Types.ObjectId,
       ref: "Trailer",
       required: [true, "trailer is required."],
-      index: true,
+      // index handled via compound indexes section
     },
 
     yardId: {
@@ -259,10 +259,15 @@ const MovementSchema = new Schema<TMovement>(
         },
         "yardId is required when movement type is IN or OUT.",
       ],
-      index: true,
+      // index handled via compound/partial indexes section
     } as SchemaDefinitionProperty<EYardId | undefined>,
 
-    ts: { type: Date, required: [true, "ts is required."], default: Date.now, index: true },
+    ts: {
+      type: Date,
+      required: [true, "ts is required."],
+      default: Date.now,
+      // index handled via compound/partial indexes section
+    },
 
     actor: { type: ActorSchema, required: [true, "actor is required."] },
 
@@ -303,8 +308,7 @@ const MovementSchema = new Schema<TMovement>(
       type: String,
       required: [true, "requestId is required."],
       trim: true,
-      unique: true,
-      index: true,
+      unique: true, // unique index only (no extra 'index: true')
     },
   },
   {
@@ -315,9 +319,29 @@ const MovementSchema = new Schema<TMovement>(
 );
 
 /* ───────────────────────── Indexes ───────────────────────── */
-
+// trailer history + latest I/O lookup
 MovementSchema.index({ trailer: 1, ts: -1 }, { name: "by_trailer_ts" });
+
+// admin search: type/yard + time range + ts sort
 MovementSchema.index({ type: 1, yardId: 1, ts: -1 }, { name: "by_type_yard_ts" });
+
+// dashboard & search: newDamage within yard/time window
+MovementSchema.index(
+  { yardId: 1, ts: -1 },
+  {
+    name: "partial_yard_ts_newDamage",
+    partialFilterExpression: { "damages.newDamage": true },
+  }
+);
+
+// admin search: hasDamage=true (any damage) within yard/time window
+MovementSchema.index(
+  { yardId: 1, ts: -1 },
+  {
+    name: "partial_yard_ts_hasDamage",
+    partialFilterExpression: { "damages.0": { $exists: true } },
+  }
+);
 
 /* ───────────────── Duplicate-key -> friendly errors ───────────────── */
 

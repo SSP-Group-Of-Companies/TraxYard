@@ -513,6 +513,12 @@ export async function POST(req: NextRequest) {
     {
       const newLoadState = mapLoadState(!!body?.trip?.isLoaded);
 
+      // Always update safetyInspectionExpiryDate if changed
+      const nextExpiry = new Date(body.trip.safetyInspectionExpiry);
+      if (!trailerDoc.safetyInspectionExpiryDate || trailerDoc.safetyInspectionExpiryDate.getTime() !== nextExpiry.getTime()) {
+        trailerDoc.safetyInspectionExpiryDate = nextExpiry;
+      }
+
       if (body.type === EMovementType.IN) {
         trailerDoc.status = ETrailerStatus.IN;
         trailerDoc.yardId = body.yardId as EYardId;

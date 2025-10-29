@@ -17,14 +17,14 @@ const YardDayStatSchema = new Schema<TYardDayStat>(
         values: Object.values(EYardId) as string[],
         message: enumMsg("yardId", Object.values(EYardId) as string[]),
       },
-      index: true,
+      // single-field index removed; covered by unique compound below
     },
 
     // 'YYYY-MM-DD' in APP_TZ
     dayKey: {
       type: String,
       required: [true, "dayKey is required."],
-      trim: true, // follow your convention: prefer `trim: true`
+      trim: true,
       match: [/^\d{4}-\d{2}-\d{2}$/, "dayKey must be 'YYYY-MM-DD'."],
     },
 
@@ -42,30 +42,10 @@ const YardDayStatSchema = new Schema<TYardDayStat>(
       required: [true, "dayStartUtc is required."],
     },
 
-    inCount: {
-      type: Number,
-      required: [true, "inCount is required."],
-      default: 0,
-      min: [0, "inCount cannot be negative."],
-    },
-    outCount: {
-      type: Number,
-      required: [true, "outCount is required."],
-      default: 0,
-      min: [0, "outCount cannot be negative."],
-    },
-    inspectionCount: {
-      type: Number,
-      required: [true, "inspectionCount is required."],
-      default: 0,
-      min: [0, "inspectionCount cannot be negative."],
-    },
-    damageCount: {
-      type: Number,
-      required: [true, "damageCount is required."],
-      default: 0,
-      min: [0, "damageCount cannot be negative."],
-    },
+    inCount: { type: Number, required: true, default: 0, min: [0, "inCount cannot be negative."] },
+    outCount: { type: Number, required: true, default: 0, min: [0, "outCount cannot be negative."] },
+    inspectionCount: { type: Number, required: true, default: 0, min: [0, "inspectionCount cannot be negative."] },
+    damageCount: { type: Number, required: true, default: 0, min: [0, "damageCount cannot be negative."] },
   },
   {
     timestamps: true,
@@ -74,7 +54,8 @@ const YardDayStatSchema = new Schema<TYardDayStat>(
   }
 );
 
-// One doc per yard per business day
+/* ───────────────────────── Indexes ───────────────────────── */
+// one doc per yard per day; also supports point & range queries
 YardDayStatSchema.index({ yardId: 1, dayKey: 1 }, { unique: true, name: "uniq_yard_dayKey" });
 
 /** Minimal E11000 duplicate-key -> friendly message (mirrors Trailer model pattern). */
