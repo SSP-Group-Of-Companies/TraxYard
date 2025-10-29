@@ -32,7 +32,7 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { TCurrentWeather } from "@/types/weather.types";
 import { Wind } from "lucide-react";
-import { cardHoverVariants, fadeInVariants } from "@/lib/animations/Animations";
+import { cardHoverVariants, fadeInVariants } from "@/lib/animations";
 
 /**
  * Location data interface supporting flexible location formats
@@ -137,7 +137,7 @@ export default function WeatherChip({
   return (
     <motion.div
       className="rounded-2xl p-3 sm:p-4 text-white shadow-sm
-                 bg-gradient-to-br from-[#0B63B6] to-[#00B36B]
+                 bg-gradient-to-br from-[var(--color-blue)] to-[var(--color-green)]
                  backdrop-blur supports-[backdrop-filter]:bg-white/0
                  max-w-xs sm:max-w-sm"
       variants={cardHoverVariants}

@@ -12,7 +12,7 @@ function Card({
   label,
   value,
   icon,
-  tint,
+  tint: _tint,
 }: {
   label: string;
   value: number | null;
@@ -37,7 +37,7 @@ function Card({
 
         <div
           className="grid h-9 w-9 place-items-center rounded-xl shrink-0"
-          style={{ backgroundColor: `${tint}1A` }} // ~10% tint
+          style={{ backgroundColor: "color-mix(in oklab, currentColor 10%, transparent)" }}
         >
           {icon}
         </div>
@@ -63,26 +63,26 @@ export default function DailyCounts({
       <Card
         label="Coming IN Today"
         value={inCount}
-        tint="#00B36B"
-        icon={<ArrowDownToLine className="h-4 w-4 text-[#00B36B]" />}
+        tint="var(--color-green)"
+        icon={<ArrowDownToLine className="h-4 w-4 text-[var(--color-green)]" />}
       />
       <Card
         label="Going OUT Today"
         value={outCount}
-        tint="#0B63B6"
-        icon={<ArrowUpFromLine className="h-4 w-4 text-[#0B63B6]" />}
+        tint="var(--color-blue)"
+        icon={<ArrowUpFromLine className="h-4 w-4 text-[var(--color-blue)]" />}
       />
       <Card
         label="Inspections Today"
         value={inspectionCount}
-        tint="#F97316"
-        icon={<ClipboardCheck className="h-4 w-4 text-[#F97316]" />}
+        tint="var(--color-orange)"
+        icon={<ClipboardCheck className="h-4 w-4 text-[var(--color-orange)]" />}
       />
       <Card
         label="Recent Damages"
         value={damageCount}
-        tint="#EF4444"
-        icon={<AlertTriangle className="h-4 w-4 text-[#EF4444]" />}
+        tint="var(--color-red)"
+        icon={<AlertTriangle className="h-4 w-4 text-[var(--color-red)]" />}
       />
     </div>
   );

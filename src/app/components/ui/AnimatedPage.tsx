@@ -26,7 +26,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { pageVariants } from "@/lib/animations/Animations";
+import { pageVariants } from "@/lib/animations";
 import { ReactNode } from "react";
 
 /**

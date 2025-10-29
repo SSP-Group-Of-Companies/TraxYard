@@ -26,7 +26,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { cardHoverVariants } from "@/lib/animations/Animations";
+import { cardHoverVariants } from "@/lib/animations";
 import { ReactNode } from "react";
 
 /**

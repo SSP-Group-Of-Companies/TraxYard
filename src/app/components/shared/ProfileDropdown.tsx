@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
-import { modalVariants } from "@/lib/animations/Animations";
+import { modalVariants } from "@/lib/animations";
 import { NEXT_PUBLIC_PORTAL_BASE_URL } from "@/config/env";
 import ProfileAvatar from "./ProfileAvatar";
 import { useSession } from "next-auth/react";

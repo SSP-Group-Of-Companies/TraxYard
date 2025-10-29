@@ -13,22 +13,22 @@ export type TTrailerDto = {
   owner?: string;
   make?: string;
   model?: string;
-  year?: number;
+  year?: number; // UI model is always number
   vin?: string;
   licensePlate?: string;
   stateOrProvince?: string;
   trailerType?: ETrailerType;
-  safetyInspectionExpiryDate?: string; // ISO string
+  safetyInspectionExpiryDate?: string | Date | null; // ISO string or Date object
   comments?: string;
 
   status?: ETrailerStatus;
   yardId?: EYardId;
 
-  lastMoveIoTs?: string; // ISO string
+  lastMoveIoTs?: string | Date | null; // ISO string or Date object
   lastMoveIo?: {
-    ts?: string; // ISO string
+    ts?: string | Date | null; // ISO string or Date object
     carrier?: { truckNumber?: string };
-    type?: string; // "IN" | "OUT" (string on the wire)
+    type?: ETrailerStatus; // API sends IN/OUT, ETrailerStatus contains both
     yardId?: EYardId;
   };
 
@@ -36,8 +36,8 @@ export type TTrailerDto = {
   condition?: ETrailerCondition;
   totalMovements?: number;
 
-  createdAt?: string;
-  updatedAt?: string;
+  createdAt?: string | Date | null;
+  updatedAt?: string | Date | null;
 };
 
 /** Normalized UI model (Dates, guaranteed nests for rendering) */
@@ -47,7 +47,7 @@ export type TTrailerUI = {
   owner?: string;
   make?: string;
   model?: string;
-  year?: number;
+  year?: number; // UI model is always number
   vin?: string;
   licensePlate?: string;
   stateOrProvince?: string;
@@ -62,7 +62,7 @@ export type TTrailerUI = {
   lastMoveIo?: {
     ts?: Date;
     carrier: { truckNumber?: string };
-    type?: string;
+    type?: ETrailerStatus; // API sends IN/OUT, ETrailerStatus contains both
     yardId?: EYardId;
   };
 

@@ -10,7 +10,22 @@ import { X, Search } from "lucide-react";
 import { useYardStore } from "@/store/useYardStore";
 import { useInYardTrailers } from "../hooks/useInYardTrailers";
 import Pager from "@/components/ui/Pager";
-import { modalAnimations } from "@/lib/animations/animated";
+import { modalAnimations } from "@/lib/animations";
+
+/**
+ * Helper function to find all focusable elements within a container
+ * @param root - The root element to search within
+ * @returns Array of focusable elements
+ */
+function getFocusables(root: HTMLElement) {
+  return Array.from(
+    root.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
+    )
+  ).filter(
+    (el) => !el.hasAttribute("disabled") && !el.getAttribute("aria-hidden")
+  );
+}
 
 interface Props {
   open: boolean;
@@ -45,10 +60,36 @@ export default function InYardModal({ open, onClose }: Props) {
       else if (e.key === "ArrowRight" && meta?.hasNext) setPage(meta.page + 1);
       else if (e.key === "ArrowLeft" && meta?.hasPrev) setPage(meta.page - 1);
     };
+
+    // Focus trap for Tab cycling
+    const handleTrap = (e: KeyboardEvent) => {
+      if (e.key !== "Tab" || !dialogRef.current) return;
+      const nodes = getFocusables(dialogRef.current);
+      if (nodes.length === 0) return;
+
+      const first = nodes[0];
+      const last = nodes[nodes.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+
+      if (e.shiftKey) {
+        if (active === first || !dialogRef.current.contains(active)) {
+          last.focus();
+          e.preventDefault();
+        }
+      } else {
+        if (active === last || !dialogRef.current.contains(active)) {
+          first.focus();
+          e.preventDefault();
+        }
+      }
+    };
+
     window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handleTrap);
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keydown", handleTrap);
       document.body.style.overflow = prevOverflow;
       if (lastFocusedElement.current) {
         lastFocusedElement.current.focus();
@@ -80,6 +121,7 @@ export default function InYardModal({ open, onClose }: Props) {
           {/* Modal */}
           <motion.div
             ref={dialogRef}
+            role="document"
             className="relative w-full max-w-[900px] rounded-2xl bg-white ring-1 ring-black/10 shadow-xl
                        max-h-[85vh] overflow-hidden flex flex-col"
             variants={modalAnimations.content}
@@ -124,6 +166,10 @@ export default function InYardModal({ open, onClose }: Props) {
                     onPage={(p) => setPage(p)}
                     disabled={loading}
                     compact
+                    showCount
+                    total={meta?.total ?? rows.length}
+                    pageSize={meta?.pageSize ?? 20}
+                    countVariant="muted"
                   />
                 </div>
               </div>
@@ -169,7 +215,9 @@ export default function InYardModal({ open, onClose }: Props) {
                             className="px-3 py-4 text-center text-red-600"
                             colSpan={4}
                           >
-                            {error.message || "Failed to load trailers."}
+                            {typeof (error as any)?.message === "string"
+                              ? (error as any).message
+                              : "Failed to load trailers."}
                           </td>
                         </tr>
                       )}

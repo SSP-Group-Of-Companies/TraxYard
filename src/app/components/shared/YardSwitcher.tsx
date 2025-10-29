@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, ChevronDown } from "lucide-react";
-import { modalVariants, fadeInVariants } from "@/lib/animations/Animations";
+import { modalVariants, fadeInVariants } from "@/lib/animations";
 import { EYardId } from "@/types/yard.types";
 import { yards } from "@/data/yards";
 import { useYardStore } from "@/store/useYardStore";

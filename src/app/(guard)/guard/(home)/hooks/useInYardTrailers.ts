@@ -9,17 +9,20 @@ import type { TTrailerDto, TTrailerUI } from "@/types/frontend/trailer.dto";
 import { EYardId } from "@/types/yard.types";
 import { mapTrailerDto } from "@/lib/mappers/mapTrailerDto";
 import { refreshBus } from "@/lib/refresh/refreshBus";
+import { apiFetch } from "@/lib/api/apiFetch";
+import { TrailerDtoSchema } from "@/types/schemas/trailers.schema";
+import { extractTrailersAndMeta } from "@/lib/api/normalize";
 
 type Meta = {
   page: number;
   pageSize: number;
   total: number;
   totalPages: number;
-  hasPrev: boolean;
-  hasNext: boolean;
+  hasPrev?: boolean;
+  hasNext?: boolean;
   sortBy?: string;
   sortDir?: "asc" | "desc";
-  filters?: Record<string, unknown>;
+  filters?: Record<string, any>;
 };
 
 type Result = {
@@ -32,28 +35,6 @@ type Result = {
   refetch: () => void;
 };
 
-class HttpError extends Error {
-  status: number;
-  constructor(status: number, message: string) {
-    super(message);
-    this.status = status;
-  }
-}
-
-function unwrapTrailers(json: any): { data: TTrailerDto[]; meta: Meta | null } {
-  const payload = json?.data ?? json ?? {};
-  const rows = Array.isArray(payload?.data)
-    ? payload.data
-    : Array.isArray(payload?.rows)
-    ? payload.rows
-    : Array.isArray(payload)
-    ? payload
-    : [];
-  return {
-    data: rows as TTrailerDto[],
-    meta: (payload?.meta ?? null) as Meta | null,
-  };
-}
 
 export function useInYardTrailers(
   yardId: EYardId,
@@ -90,21 +71,40 @@ export function useInYardTrailers(
   }, [yardId, page, pageSize, debouncedQuery]);
 
   const doFetch = useCallback(async (endpoint: string, signal: AbortSignal) => {
-    const r = await fetch(endpoint, {
-      signal,
-      credentials: "include",
-      cache: "no-store",
-    });
-    if (!r.ok) {
-      let msg = `HTTP ${r.status}`;
-      try {
-        const errJson = await r.json();
-        if (errJson?.message) msg = errJson.message;
-      } catch {}
-      throw new HttpError(r.status, msg);
+    const json = await apiFetch<any>(endpoint, { signal, retries: 2 });
+
+    // Pull out just what we need, regardless of envelope shape
+    const { items, meta } = extractTrailersAndMeta(json);
+
+    // Validate items individually (relaxed schema); log & skip invalid rows
+    const valid: TTrailerDto[] = [];
+    for (const it of items ?? []) {
+      const parsed = TrailerDtoSchema.safeParse(it);
+      if (parsed.success) {
+        valid.push(parsed.data);
+      } else if (process.env.NODE_ENV === "development") {
+        // Optional: dev-time console to see why an item failed
+        console.debug(
+          "[trailers] dropped invalid item:",
+          parsed.error.issues.map(i => i.path.join(".")).join(", ")
+        );
+      }
     }
-    const json = await r.json();
-    return unwrapTrailers(json);
+
+    return { 
+      data: valid, 
+      meta: meta ? {
+        page: meta.page ?? 1,
+        pageSize: meta.pageSize ?? 20,
+        total: meta.total ?? 0,
+        totalPages: meta.totalPages ?? 1,
+        hasPrev: meta.hasPrev,
+        hasNext: meta.hasNext,
+        sortBy: meta.sortBy,
+        sortDir: meta.sortDir,
+        filters: meta.filters,
+      } : null
+    };
   }, []);
 
   const load = useCallback(() => {
@@ -127,8 +127,8 @@ export function useInYardTrailers(
       } catch (err: any) {
         if (err?.name === "AbortError") return;
         if (
-          err instanceof HttpError &&
-          (err.status === 404 || err.status === 405)
+          err instanceof Error &&
+          (err.message.includes("404") || err.message.includes("405"))
         ) {
           const u2 = new URL(url);
           u2.pathname = u2.pathname.replace(

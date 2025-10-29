@@ -35,7 +35,7 @@ import {
   staggerContainer,
   staggerItem,
   fadeInVariants,
-} from "@/lib/animations/Animations";
+} from "@/lib/animations";
 import { useYardStore } from "@/store/useYardStore";
 import { useGuardDashboard } from "../hooks/useGuardDashboard";
 
@@ -76,7 +76,7 @@ export default function HomeClient() {
   const { data: session } = useSession();
 
   // Centralized data fetching with auto-refresh
-  const { data, isLoading } = useGuardDashboard(yardId, { refreshMs: 60_000 });
+  const { data, isLoading } = useGuardDashboard(yardId);
 
   // Track active action mode for modal management
   const [mode, setMode] = useState<"IN" | "OUT" | "INSPECTION" | null>(null);
@@ -165,9 +165,20 @@ export default function HomeClient() {
 
       {/* ================= Modals ================= */}
       <TrailerSearchModal
+        key={mode ?? "none"}                 // Forces a clean mount per open
         open={mode !== null}
         mode={mode ?? "IN"}
         onClose={() => setMode(null)}
+        onContinue={(trailerNumber) => {
+          // TODO: Route to guard data page with selected trailer
+          console.log(`Continue with trailer: ${trailerNumber} in mode: ${mode}`);
+          setMode(null);
+        }}
+        onCreateNew={() => {
+          // TODO: Open new trailer form
+          console.log("Create new trailer");
+          setMode(null);
+        }}
       />
       
       <InYardModal

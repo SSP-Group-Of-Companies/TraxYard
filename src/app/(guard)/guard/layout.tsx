@@ -21,9 +21,13 @@
  * - Non-interfering with existing watermark
  */
 
+"use client";
+
 import type { ReactNode } from "react";
+import { useEffect } from "react";
 import Navbar from "@/app/components/shared/Navbar";
 import Footer from "@/app/components/shared/Footer";
+import { refreshBus } from "@/lib/refresh/refreshBus";
 
 /**
  * Guard Layout Component
@@ -48,6 +52,11 @@ import Footer from "@/app/components/shared/Footer";
  * - Non-interfering with watermark functionality
  */
 export default function GuardLayout({ children }: { children: ReactNode }) {
+  // Set global refresh cadence for all guard components
+  useEffect(() => {
+    refreshBus.setCadence(60_000); // 1 minute globally
+  }, []);
+
   return (
     <div className="min-h-dvh flex flex-col guard-watermark relative">
       {/* Green gradient background */}

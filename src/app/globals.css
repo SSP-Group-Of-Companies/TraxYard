@@ -31,6 +31,8 @@
   --color-success: #00b36b;
   --color-warning: #f59e0b;
   --color-error: #dc2626;
+  --color-orange: #f97316;
+  --color-red: #ef4444;
 }
 
 /* 3) Base reset & typography */

@@ -1,11 +1,6 @@
 import { TTrailerDto, TTrailerUI } from "@/types/frontend/trailer.dto";
-
-const toDate = (v?: string | Date | null): Date | undefined => {
-  if (!v) return undefined;
-  if (v instanceof Date) return v;
-  const t = Date.parse(String(v));
-  return Number.isFinite(t) ? new Date(t) : undefined;
-};
+import { toDate } from "@/lib/dates";
+import { ETrailerStatus } from "@/types/Trailer.types";
 
 /** Prefer nested lastMoveIo.ts when present, else fall back to lastMoveIoTs */
 export function mapTrailerDto(dto: TTrailerDto): TTrailerUI {
@@ -17,7 +12,10 @@ export function mapTrailerDto(dto: TTrailerDto): TTrailerUI {
     owner: dto.owner,
     make: dto.make,
     model: dto.model,
-    year: dto.year,
+    year: (() => {
+      const yearNum = typeof dto.year === "string" ? parseInt(dto.year, 10) : dto.year;
+      return typeof yearNum === "number" && Number.isInteger(yearNum) ? yearNum : undefined;
+    })(),
     vin: dto.vin,
     licensePlate: dto.licensePlate,
     stateOrProvince: dto.stateOrProvince,
@@ -32,8 +30,8 @@ export function mapTrailerDto(dto: TTrailerDto): TTrailerUI {
     lastMoveIo: dto.lastMoveIo
       ? {
           ts: toDate(dto.lastMoveIo.ts),
-          carrier: { truckNumber: dto.lastMoveIo.carrier?.truckNumber },
-          type: dto.lastMoveIo.type,
+          carrier: dto.lastMoveIo.carrier ?? {}, // Ensure carrier object always exists
+          type: dto.lastMoveIo.type as ETrailerStatus,
           yardId: dto.lastMoveIo.yardId,
         }
       : undefined,

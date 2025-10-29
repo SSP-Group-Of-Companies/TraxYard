@@ -27,7 +27,7 @@
 
 import { ArrowDownToLine, ArrowUpFromLine, Wrench, Truck, ArrowRight, CheckCircle } from "lucide-react";
 import { motion } from "framer-motion";
-import { actionButtonVariants, iconVariants, attentionPulse } from "@/lib/animations/Animations";
+import { actionButtonVariants, iconVariants, attentionPulse } from "@/lib/animations";
 
 /**
  * Represents the available trailer operation modes
@@ -65,9 +65,9 @@ export default function ActionButtons({
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <EnhancedGlassButton
         label="Coming IN"
-        icon={<Truck className="h-5 w-5 text-[#00B36B]" />}
-        secondaryIcon={<ArrowDownToLine className="h-4 w-4 text-[#00B36B]/70" />}
-        ring="ring-[#00B36B]/30"
+        icon={<Truck className="h-5 w-5 text-[var(--color-green)]" />}
+        secondaryIcon={<ArrowDownToLine className="h-4 w-4 text-[color:color-mix(in oklab,var(--color-green) 70%,transparent)]" />}
+        ring="ring-[color:color-mix(in oklab,var(--color-green) 30%,transparent)]"
         pressed={active === "IN"}
         onClick={() => onSelect("IN")}
         animationType="bounce"
@@ -75,9 +75,9 @@ export default function ActionButtons({
       />
       <EnhancedGlassButton
         label="Going OUT"
-        icon={<ArrowRight className="h-5 w-5 text-[#0B63B6]" />}
-        secondaryIcon={<ArrowUpFromLine className="h-4 w-4 text-[#0B63B6]/70" />}
-        ring="ring-[#0B63B6]/30"
+        icon={<ArrowRight className="h-5 w-5 text-[var(--color-blue)]" />}
+        secondaryIcon={<ArrowUpFromLine className="h-4 w-4 text-[color:color-mix(in oklab,var(--color-blue) 70%,transparent)]" />}
+        ring="ring-[color:color-mix(in oklab,var(--color-blue) 30%,transparent)]"
         pressed={active === "OUT"}
         onClick={() => onSelect("OUT")}
         animationType="pulse"
@@ -85,8 +85,8 @@ export default function ActionButtons({
       />
       <EnhancedGlassButton
         label="Inspection"
-        icon={<Wrench className="h-5 w-5 text-[#0B1A2A]" />}
-        secondaryIcon={<CheckCircle className="h-4 w-4 text-[#0B1A2A]/70" />}
+        icon={<Wrench className="h-5 w-5 text-[var(--color-ink)]" />}
+        secondaryIcon={<CheckCircle className="h-4 w-4 text-[color:color-mix(in oklab,var(--color-ink) 70%,transparent)]" />}
         ring="ring-black/15"
         pressed={active === "INSPECTION"}
         onClick={() => onSelect("INSPECTION")}

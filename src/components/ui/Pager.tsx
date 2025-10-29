@@ -43,6 +43,14 @@ interface PagerProps {
   compact?: boolean;
   /** Disable all interactions */
   disabled?: boolean;
+  /** Total item count (enables "start–end of total" chip when showCount = true) */
+  total?: number;
+  /** Page size used to compute start/end (defaults to 20 if omitted) */
+  pageSize?: number;
+  /** Show result count */
+  showCount?: boolean;
+  /** Count display style */
+  countVariant?: "chip" | "muted";
 }
 
 /**
@@ -83,6 +91,10 @@ export default function Pager({
   className,
   compact = false,
   disabled = false,
+  total,
+  pageSize = 20,
+  showCount = false,
+  countVariant = "chip",
 }: PagerProps) {
   // Validation
   if (totalPages < 1) {
@@ -105,6 +117,11 @@ export default function Pager({
     onPage(newPage);
   };
 
+  // Count chip numbers (only if we have a total)
+  const showChip = showCount && typeof total === "number" && total >= 0;
+  const startIndex = showChip ? (page - 1) * pageSize + 1 : undefined;
+  const endIndex = showChip ? Math.min(page * pageSize, total!) : undefined;
+
   return (
     <nav
       className={[
@@ -114,12 +131,24 @@ export default function Pager({
       ].join(" ")}
       aria-label="Pagination"
       role="navigation"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (disabled) return;
+        if (e.key === "ArrowLeft" && hasPrev) { 
+          e.preventDefault(); 
+          onPage(page - 1); 
+        }
+        if (e.key === "ArrowRight" && hasNext) { 
+          e.preventDefault(); 
+          onPage(page + 1); 
+        }
+      }}
     >
       {/* Previous button */}
       <button
         className="h-8 w-8 grid place-items-center rounded-full ring-1 ring-black/10 text-sm
-                   disabled:opacity-40 hover:bg-black/[0.04] focus:bg-black/[0.04] 
-                   focus:outline-none focus:ring-2 focus:ring-[#0B63B6]/30 transition-colors"
+                   disabled:opacity-40 hover:bg-black/[0.04] focus:bg-black/[0.04]
+                   focus:outline-none focus:ring-2 focus:ring-[color:color-mix(in oklab,var(--color-blue) 30%,transparent)] transition-colors"
         onClick={() => handlePageChange(page - 1)}
         disabled={!hasPrev || disabled}
         aria-label="Previous page"
@@ -169,7 +198,7 @@ export default function Pager({
       <button
         className="h-8 w-8 grid place-items-center rounded-full ring-1 ring-black/10 text-sm
                    disabled:opacity-40 hover:bg-black/[0.04] focus:bg-black/[0.04]
-                   focus:outline-none focus:ring-2 focus:ring-[#0B63B6]/30 transition-colors"
+                   focus:outline-none focus:ring-2 focus:ring-[color:color-mix(in oklab,var(--color-blue) 30%,transparent)] transition-colors"
         onClick={() => handlePageChange(page + 1)}
         disabled={!hasNext || disabled}
         aria-label="Next page"
@@ -177,6 +206,27 @@ export default function Pager({
       >
         <ChevronRight className="h-4 w-4" />
       </button>
+
+      {/* Count display */}
+      {showChip && (
+        countVariant === "chip" ? (
+          <span
+            className="ml-1 px-2 h-8 inline-flex items-center rounded-full text-xs tabular-nums
+                       bg-black/[0.04] text-black/70 ring-1 ring-black/10"
+            aria-live="polite"
+            title={`${startIndex}–${endIndex} of ${total}`}
+          >
+            {totalPages > 1 ? `${startIndex}–${endIndex} of ${total}` : `${total} results`}
+          </span>
+        ) : (
+          <span
+            className="ml-2 text-xs text-black/50 tabular-nums"
+            aria-live="polite"
+          >
+            {totalPages > 1 ? `${startIndex}–${endIndex} of ${total}` : `${total} results`}
+          </span>
+        )
+      )}
     </nav>
   );
 }
@@ -201,8 +251,8 @@ function PageDot({
         "h-8 min-w-8 px-2 rounded-full text-sm font-medium tabular-nums",
         "ring-1 ring-black/10 transition-colors focus:outline-none focus:ring-2",
         isCurrent
-          ? "bg-[#0B63B6] text-white ring-[#0B63B6] focus:ring-[#0B63B6]/50"
-          : "bg-white hover:bg-black/[0.04] text-black/80 focus:ring-[#0B63B6]/30",
+          ? "bg-[var(--color-blue)] text-white ring-[var(--color-blue)] focus:ring-[color:color-mix(in oklab,var(--color-blue) 50%,transparent)]"
+          : "bg-white hover:bg-black/[0.04] text-black/80 focus:ring-[color:color-mix(in oklab,var(--color-blue) 30%,transparent)]",
         disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
       ].join(" ")}
       aria-current={isCurrent ? "page" : undefined}

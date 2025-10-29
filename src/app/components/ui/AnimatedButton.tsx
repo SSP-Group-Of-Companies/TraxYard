@@ -26,7 +26,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { buttonVariants } from "@/lib/animations/Animations";
+import { buttonVariants } from "@/lib/animations";
 import { ReactNode } from "react";
 
 /**

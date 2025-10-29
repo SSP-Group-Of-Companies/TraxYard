@@ -28,7 +28,7 @@
 
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { spinnerVariants, fadeInVariants } from "@/lib/animations/Animations";
+import { spinnerVariants, fadeInVariants } from "@/lib/animations";
 
 /**
  * LoadingSpinner component props interface
