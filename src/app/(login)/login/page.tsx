@@ -13,10 +13,10 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
-  // On successful auth, always go to "/"
+  // On successful auth, redirect to guard dashboard
   useEffect(() => {
     if (status === "authenticated") {
-      router.replace("/");
+      router.replace("/guard");
     }
   }, [status, router]);
 

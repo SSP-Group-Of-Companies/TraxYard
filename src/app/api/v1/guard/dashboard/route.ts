@@ -79,7 +79,11 @@
  */
 import { NextRequest } from "next/server";
 import connectDB from "@/lib/utils/connectDB";
-import { successResponse, errorResponse, AppError } from "@/lib/utils/apiResponse";
+import {
+  successResponse,
+  errorResponse,
+  AppError,
+} from "@/lib/utils/apiResponse";
 import { guard } from "@/lib/auth/authUtils";
 
 import { Trailer } from "@/mongoose/models/Trailer";
@@ -111,7 +115,10 @@ export async function GET(req: NextRequest) {
 
     const [currentInCount, todaysStat, weather] = await Promise.all([
       Trailer.countDocuments({ yardId, status: ETrailerStatus.IN }),
-      YardDayStat.findOne({ yardId, dayKey: toDayKey(new Date(), APP_TZ) }).lean(),
+      YardDayStat.findOne({
+        yardId,
+        dayKey: toDayKey(new Date(), APP_TZ),
+      }).lean(),
       (async () => {
         const loc = yard.location;
         if (loc?.latitude != null && loc?.longitude != null) {
@@ -126,6 +133,13 @@ export async function GET(req: NextRequest) {
         id: yard.id,
         name: yard.name,
         capacity: { current: currentInCount, max },
+        // Frontend Dev: human-readable location for the UI
+        location: {
+          city: yard.location?.city ?? null,
+          state:
+            (yard.location as any)?.state ?? yard.location?.province ?? null, // province→state alias
+          country: (yard.location as any)?.country ?? "Canada", // fallback if country not stored
+        },
       },
       stats: todaysStat ?? null,
       weather, // includes iconHint + label for UI

@@ -4,20 +4,16 @@ export enum ETrailerStatus {
   IN = "IN",
   OUT = "OUT",
 }
-
 export enum ETrailerCondition {
   ACTIVE = "ACTIVE",
   OUT_OF_SERVICE = "OUT_OF_SERVICE",
   DAMAGED = "DAMAGED",
 }
-
 export enum ETrailerLoadState {
   EMPTY = "EMPTY",
   LOADED = "LOADED",
   UNKNOWN = "UNKNOWN",
 }
-
-/** Common North American trailer classes */
 export enum ETrailerType {
   DRY_VAN = "DRY_VAN",
   FLATBED = "FLATBED",
@@ -27,7 +23,6 @@ export enum ETrailerType {
 }
 
 export type TTrailer = {
-  // Core identity/spec
   id?: string;
   trailerNumber: string;
   owner: string;
@@ -41,7 +36,6 @@ export type TTrailer = {
   safetyInspectionExpiryDate: Date;
   comments?: string;
 
-  // Live snapshot
   status: ETrailerStatus;
   yardId?: EYardId;
 

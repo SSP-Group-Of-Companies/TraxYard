@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
+import { modalVariants } from "@/lib/animations";
 import { NEXT_PUBLIC_PORTAL_BASE_URL } from "@/config/env";
 import ProfileAvatar from "./ProfileAvatar";
 import { useSession } from "next-auth/react";
@@ -59,16 +61,22 @@ export default function ProfileDropdown({ context, className }: ProfileDropdownP
         <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${open ? "rotate-180" : ""}`} style={{ color: "var(--color-on-surface-variant)" }} />
       </button>
 
-      {open && (
-        <div
-          className="absolute right-0 top-12 mt-1 w-48 rounded-xl shadow-lg py-2 z-50 transition-all duration-200"
-          style={{
-            backgroundColor: "var(--color-card)",
-            border: "1px solid var(--color-outline)",
-            boxShadow: "var(--color-shadow-elevated)",
-          }}
-          role="menu"
-        >
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            className="absolute right-0 top-12 mt-1 w-48 rounded-xl shadow-lg py-2 z-[60]"
+            style={{
+              backgroundColor: "rgba(255, 255, 255, 0.95)",
+              backdropFilter: "blur(8px)",
+              border: "1px solid var(--color-outline)",
+              boxShadow: "var(--shadow-2), 0 0 0 1px rgba(255, 255, 255, 0.8)",
+            }}
+            variants={modalVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            role="menu"
+          >
           <div className="px-4 py-2 border-b" style={{ borderBottomColor: "var(--color-outline)" }}>
             <div className="text-sm font-medium" style={{ color: "var(--color-on-surface)" }}>
               {userName}
@@ -80,21 +88,16 @@ export default function ProfileDropdown({ context, className }: ProfileDropdownP
 
           <a
             href={logoutHref}
-            className="block w-full px-4 py-3 text-sm transition-colors cursor-pointer active:scale-95"
+            className="block w-full px-4 py-3 text-sm transition-colors cursor-pointer active:scale-95 hover:bg-gray-100 active:bg-gray-200"
             style={{ color: "var(--color-on-surface)" }}
             role="menuitem"
             onClick={() => setOpen(false)}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "var(--color-card-hover)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "transparent";
-            }}
           >
             Logout
           </a>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

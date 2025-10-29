@@ -32,7 +32,7 @@ export async function getOpenMeteoCurrent(lat: number, lon: number): Promise<TCu
 
   return {
     provider: "open-meteo",
-    asOfIso: c.time ?? null,
+    asOfIso: new Date().toISOString(), // ✅ Use our actual fetch time, not Open-Meteo's observation time
 
     temperatureC: c.temperature_2m ?? null,
     feelsLikeC: c.apparent_temperature ?? null,

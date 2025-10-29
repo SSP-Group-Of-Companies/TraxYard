@@ -54,15 +54,31 @@
 
 import { NextRequest } from "next/server";
 import connectDB from "@/lib/utils/connectDB";
-import { successResponse, errorResponse, AppError } from "@/lib/utils/apiResponse";
+import {
+  successResponse,
+  errorResponse,
+  AppError,
+} from "@/lib/utils/apiResponse";
 import { guard } from "@/lib/auth/authUtils";
 
 import { Trailer } from "@/mongoose/models/Trailer";
-import { ETrailerStatus, ETrailerCondition, ETrailerLoadState, ETrailerType } from "@/types/Trailer.types";
+import {
+  ETrailerStatus,
+  ETrailerCondition,
+  ETrailerLoadState,
+  ETrailerType,
+} from "@/types/Trailer.types";
 import { EYardId } from "@/types/yard.types";
 import { EMovementType } from "@/types/movement.types";
 
-import { parseBool, rx, parseEnumParam, parsePagination, parseSort, buildMeta } from "@/lib/utils/queryUtils";
+import {
+  parseBool,
+  rx,
+  parseEnumParam,
+  parsePagination,
+  parseSort,
+  buildMeta,
+} from "@/lib/utils/queryUtils";
 import { parseJsonBody } from "@/lib/utils/reqParser";
 
 const SORT_MAP = {
@@ -91,24 +107,52 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
 
     // yardId is OPTIONAL for admins
-    const yardIdParam = parseEnumParam(url.searchParams.get("yardId"), Object.values(EYardId) as readonly EYardId[], "yardId");
+    const yardIdParam = parseEnumParam(
+      url.searchParams.get("yardId"),
+      Object.values(EYardId) as readonly EYardId[],
+      "yardId"
+    );
 
     // Optional: status (IN | OUT)
-    const statusParam = parseEnumParam(url.searchParams.get("status"), Object.values(ETrailerStatus) as readonly ETrailerStatus[], "status");
+    const statusParam = parseEnumParam(
+      url.searchParams.get("status"),
+      Object.values(ETrailerStatus) as readonly ETrailerStatus[],
+      "status"
+    );
 
     // Pagination
-    const { page, limit, skip } = parsePagination(url.searchParams.get("page"), url.searchParams.get("limit"));
+    const { page, limit, skip } = parsePagination(
+      url.searchParams.get("page"),
+      url.searchParams.get("limit")
+    );
 
     // Filters
     const q = url.searchParams.get("q")?.trim() || "";
-    const typeParam = parseEnumParam(url.searchParams.get("trailerType"), Object.values(ETrailerType) as readonly ETrailerType[], "trailerType");
-    const conditionParam = parseEnumParam(url.searchParams.get("condition"), Object.values(ETrailerCondition) as readonly ETrailerCondition[], "condition");
-    const loadParam = parseEnumParam(url.searchParams.get("loadState"), Object.values(ETrailerLoadState) as readonly ETrailerLoadState[], "loadState");
+    const typeParam = parseEnumParam(
+      url.searchParams.get("trailerType"),
+      Object.values(ETrailerType) as readonly ETrailerType[],
+      "trailerType"
+    );
+    const conditionParam = parseEnumParam(
+      url.searchParams.get("condition"),
+      Object.values(ETrailerCondition) as readonly ETrailerCondition[],
+      "condition"
+    );
+    const loadParam = parseEnumParam(
+      url.searchParams.get("loadState"),
+      Object.values(ETrailerLoadState) as readonly ETrailerLoadState[],
+      "loadState"
+    );
     const expiredOnly = parseBool(url.searchParams.get("expiredOnly"));
 
     // Sorting
     const allowedKeys = Object.keys(SORT_MAP) as readonly SortKey[];
-    const { sortBy, sortDir } = parseSort(url.searchParams.get("sortBy"), url.searchParams.get("sortDir"), allowedKeys, "updatedAt");
+    const { sortBy, sortDir } = parseSort(
+      url.searchParams.get("sortBy"),
+      url.searchParams.get("sortDir"),
+      allowedKeys,
+      "updatedAt"
+    );
     const sortPath = SORT_MAP[sortBy];
 
     // Base match: optionally filter by yardId + other filters
@@ -118,7 +162,8 @@ export async function GET(req: NextRequest) {
     if (typeParam) baseMatch.trailerType = typeParam;
     if (conditionParam) baseMatch.condition = conditionParam;
     if (loadParam) baseMatch.loadState = loadParam;
-    if (expiredOnly === true) baseMatch.safetyInspectionExpiryDate = { $lt: new Date() };
+    if (expiredOnly === true)
+      baseMatch.safetyInspectionExpiryDate = { $lt: new Date() };
 
     const pipeline: any[] = [
       { $match: baseMatch },
@@ -135,7 +180,9 @@ export async function GET(req: NextRequest) {
             },
             { $sort: { ts: -1 } },
             { $limit: 1 },
-            { $project: { ts: 1, "carrier.truckNumber": 1, type: 1, yardId: 1 } },
+            {
+              $project: { ts: 1, "carrier.truckNumber": 1, type: 1, yardId: 1 },
+            },
           ],
           as: "lastMoveIo",
         },
@@ -148,7 +195,13 @@ export async function GET(req: NextRequest) {
       const r = rx(q);
       pipeline.push({
         $match: {
-          $or: [{ trailerNumber: r }, { owner: r }, { vin: r }, { licensePlate: r }, { make: r }],
+          $or: [
+            { trailerNumber: r },
+            { owner: r },
+            { vin: r },
+            { licensePlate: r },
+            { make: r },
+          ],
         },
       });
     }
@@ -275,25 +328,45 @@ export async function POST(req: NextRequest) {
     if (!owner) throw new AppError(400, "owner is required.");
     if (!make) throw new AppError(400, "make is required.");
     if (!model) throw new AppError(400, "model is required.");
-    if (!Number.isFinite(year)) throw new AppError(400, "year must be a number.");
+    if (!Number.isFinite(year))
+      throw new AppError(400, "year must be a number.");
     if (!licensePlate) throw new AppError(400, "licensePlate is required.");
-    if (!stateOrProvince) throw new AppError(400, "stateOrProvince is required.");
+    if (!stateOrProvince)
+      throw new AppError(400, "stateOrProvince is required.");
     if (!safetyInspectionExpiryDateRaw) {
       throw new AppError(400, "safetyInspectionExpiryDate is required.");
     }
 
     const safetyInspectionExpiryDate = new Date(safetyInspectionExpiryDateRaw);
     if (isNaN(safetyInspectionExpiryDate.getTime())) {
-      throw new AppError(400, "safetyInspectionExpiryDate must be a valid ISO date.");
+      throw new AppError(
+        400,
+        "safetyInspectionExpiryDate must be a valid ISO date."
+      );
     }
 
     // Enums
-    const trailerType = parseEnumParam(body.trailerType, Object.values(ETrailerType) as readonly ETrailerType[], "trailerType");
-    if (!trailerType) throw new AppError(400, "trailerType is required and must be valid.");
+    const trailerType = parseEnumParam(
+      body.trailerType,
+      Object.values(ETrailerType) as readonly ETrailerType[],
+      "trailerType"
+    );
+    if (!trailerType)
+      throw new AppError(400, "trailerType is required and must be valid.");
 
-    const condition = parseEnumParam(body.condition, Object.values(ETrailerCondition) as readonly ETrailerCondition[], "condition") ?? ETrailerCondition.ACTIVE;
+    const condition =
+      parseEnumParam(
+        body.condition,
+        Object.values(ETrailerCondition) as readonly ETrailerCondition[],
+        "condition"
+      ) ?? ETrailerCondition.ACTIVE;
 
-    const loadState = parseEnumParam(body.loadState, Object.values(ETrailerLoadState) as readonly ETrailerLoadState[], "loadState") ?? ETrailerLoadState.UNKNOWN;
+    const loadState =
+      parseEnumParam(
+        body.loadState,
+        Object.values(ETrailerLoadState) as readonly ETrailerLoadState[],
+        "loadState"
+      ) ?? ETrailerLoadState.UNKNOWN;
 
     // Optionals
     const vin = body.vin ? String(body.vin).trim() : undefined;
