@@ -22,7 +22,7 @@ export enum ES3Folder {
   ANGLES_TRAILER_NUMBER_VIN = "angles/trailer-number-vin",
   ANGLES_LANDING_GEAR_UNDERCARRIAGE = "angles/landing-gear-undercarriage",
 
-  // Movement section 3: Tires
+  // Movement section 3: Axles - Tires
   TIRES = "tires",
 
   // Movement section 4: Damages
@@ -30,7 +30,6 @@ export enum ES3Folder {
 
   // Movement section 1: Free-form uploads
   DOCUMENTS = "documents",
-  EXTRAS = "extras",
 }
 
 export interface IPresignRequest {

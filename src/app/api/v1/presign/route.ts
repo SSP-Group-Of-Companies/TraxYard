@@ -44,7 +44,6 @@ const RULES: Record<ES3Namespace, NamespaceRules> = {
 
       // Documents/Extras (images + docs)
       [ES3Folder.DOCUMENTS]: { allowedMime: IMAGES_AND_DOCS, maxMB: DEFAULT_FILE_SIZE_LIMIT_MB },
-      [ES3Folder.EXTRAS]: { allowedMime: IMAGES_AND_DOCS, maxMB: DEFAULT_FILE_SIZE_LIMIT_MB },
     },
   },
   // Future namespaces can go here
