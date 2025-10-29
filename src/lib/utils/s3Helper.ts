@@ -1,5 +1,5 @@
 // src/lib/utils/s3Helper.ts
-import { AWS_ACCESS_KEY_ID, AWS_BUCKET_NAME, AWS_REGION, AWS_SECRET_ACCESS_KEY } from "@/config/env";
+import { _AWS_ACCESS_KEY_ID, _AWS_BUCKET_NAME, _AWS_REGION, _AWS_SECRET_ACCESS_KEY } from "@/config/env";
 import { S3Client, PutObjectCommand, DeleteObjectCommand, CopyObjectCommand, HeadObjectCommand, GetObjectCommand, DeleteObjectsCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from "uuid";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -10,10 +10,10 @@ import { EFileMimeType, type IFileAsset } from "@/types/shared.types";
 /* ───────────────────────── S3 client ───────────────────────── */
 
 const s3 = new S3Client({
-  region: AWS_REGION,
+  region: _AWS_REGION,
   credentials: {
-    accessKeyId: AWS_ACCESS_KEY_ID,
-    secretAccessKey: AWS_SECRET_ACCESS_KEY,
+    accessKeyId: _AWS_ACCESS_KEY_ID,
+    secretAccessKey: _AWS_SECRET_ACCESS_KEY,
   },
 });
 
@@ -34,7 +34,7 @@ export async function uploadBinaryToS3({
 
   await s3.send(
     new PutObjectCommand({
-      Bucket: AWS_BUCKET_NAME,
+      Bucket: _AWS_BUCKET_NAME,
       Key: key,
       Body: fileBuffer,
       ContentType: fileType,
@@ -48,7 +48,7 @@ export async function uploadBinaryToS3({
 export async function deleteS3Objects(keys: string[]): Promise<void> {
   if (!Array.isArray(keys) || keys.length === 0) return;
 
-  const Bucket = AWS_BUCKET_NAME;
+  const Bucket = _AWS_BUCKET_NAME;
 
   // S3 DeleteObjects limit is 1000 objects per request
   const CHUNK = 1000;
@@ -78,7 +78,7 @@ export async function deleteS3Objects(keys: string[]): Promise<void> {
 
 /** Move via copy+delete (S3 has no native move). */
 export async function moveS3Object({ fromKey, toKey }: { fromKey: string; toKey: string }): Promise<{ url: string; key: string }> {
-  const Bucket = AWS_BUCKET_NAME;
+  const Bucket = _AWS_BUCKET_NAME;
 
   await s3.send(
     new CopyObjectCommand({
@@ -95,7 +95,7 @@ export async function moveS3Object({ fromKey, toKey }: { fromKey: string; toKey:
 /** HEAD request to see if an object exists. */
 export async function s3ObjectExists(key: string): Promise<boolean> {
   try {
-    await s3.send(new HeadObjectCommand({ Bucket: AWS_BUCKET_NAME, Key: key }));
+    await s3.send(new HeadObjectCommand({ Bucket: _AWS_BUCKET_NAME, Key: key }));
     return true;
   } catch (err: any) {
     if (err?.name === "NotFound") return false;
@@ -107,7 +107,7 @@ export async function s3ObjectExists(key: string): Promise<boolean> {
 /** Server-side: create a presigned PUT URL for the exact key + Content-Type. */
 export async function getPresignedPutUrl({ key, fileType, expiresIn = DEFAULT_PRESIGN_EXPIRY_SECONDS }: { key: string; fileType: string; expiresIn?: number }): Promise<{ url: string }> {
   const command = new PutObjectCommand({
-    Bucket: AWS_BUCKET_NAME,
+    Bucket: _AWS_BUCKET_NAME,
     Key: key,
     ContentType: fileType,
   });
@@ -128,7 +128,7 @@ export const keyJoin = (...parts: Array<string | null | undefined>) =>
     .join("/");
 
 /** Public URL for a given S3 key (no ACL change implied). */
-export const publicUrlForKey = (key: string) => `https://${AWS_BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/${trimSlashes(key)}`;
+export const publicUrlForKey = (key: string) => `https://${_AWS_BUCKET_NAME}.s3.${_AWS_REGION}.amazonaws.com/${trimSlashes(key)}`;
 
 /** Is this a temp object? (Namespace-agnostic) */
 export const isTempKey = (key?: string) => Boolean(key && trimSlashes(key).startsWith(trimSlashes(`${S3_TEMP_FOLDER}/`)));
@@ -309,7 +309,7 @@ async function fetchBytesFromUrl(url: string): Promise<Uint8Array> {
 }
 
 async function getS3ObjectBytes(key: string): Promise<Uint8Array> {
-  const out = await s3.send(new GetObjectCommand({ Bucket: AWS_BUCKET_NAME, Key: key }));
+  const out = await s3.send(new GetObjectCommand({ Bucket: _AWS_BUCKET_NAME, Key: key }));
   const body: any = out.Body;
 
   if (body?.transformToByteArray) return await body.transformToByteArray();
