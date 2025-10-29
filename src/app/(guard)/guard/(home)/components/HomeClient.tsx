@@ -5,16 +5,17 @@
  * dashboard components with animations, data fetching, and user interactions.
  * Features personalized greetings, real-time data, and modal management.
  *
- * @author Faruq Adebayo Atanda
+ * @author Faruq
  * @owner SSP Group of Companies
  * @created 2025
- * @version 1.0.0
+ * @version 1.1.0
  *
  * @dependencies
  * - framer-motion: For smooth animations and transitions
  * - next-auth: For user session management
  * - zustand: For global state management
- * - Custom hooks: useGuardDashboard for data fetching
+ * - next/navigation: For client-side routing
+ * - Custom hooks: useGuardDashboard, usePreflightTrailer
  * - Custom animations: staggerContainer, staggerItem, fadeInVariants
  *
  * @features
@@ -22,8 +23,8 @@
  * - Real-time dashboard data with auto-refresh
  * - Smooth animations with staggered reveals
  * - Modal state management for trailer operations
- * - Responsive design for all screen sizes
- * - Error handling and loading states
+ * - Preflight warning flow for damaged/expired trailers
+ * - Responsive design and accessibility
  */
 
 "use client";
@@ -31,6 +32,7 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import {
   staggerContainer,
   staggerItem,
@@ -38,6 +40,8 @@ import {
 } from "@/lib/animations";
 import { useYardStore } from "@/store/useYardStore";
 import { useGuardDashboard } from "../hooks/useGuardDashboard";
+import { usePreflightTrailer } from "../hooks/usePreflightTrailer";
+import { useGuardFlowStore } from "@/store/useGuardFlowStore";
 
 import ActionButtons from "./ActionButtons";
 import DailyCounts from "./DailyCounts";
@@ -45,49 +49,35 @@ import TrailerSearchModal from "./TrailerSearchModal";
 import WeatherChip from "./WeatherChip";
 import CapacityCard from "./CapacityCard";
 import InYardModal from "./InYardModal";
+import PreflightWarnings from "./PreflightWarnings";
 
-/**
- * HomeClient Component
- *
- * Main dashboard component that orchestrates all guard interface functionality.
- * Manages state, data fetching, animations, and user interactions.
- *
- * @returns {JSX.Element} Complete guard dashboard interface
- *
- * @state
- * - mode: Tracks active trailer operation mode
- * - data: Real-time dashboard data from API
- * - isLoading: Loading state for data fetching
- *
- * @performance
- * - Memoized greeting calculation for time-based messages
- * - Optimized re-renders with proper state management
- * - Auto-refresh every 60 seconds for real-time data
- *
- * @accessibility
- * - Semantic HTML structure
- * - Proper ARIA labels and roles
- * - Keyboard navigation support
- * - Screen reader friendly content
- */
 export default function HomeClient() {
   // Global state management
   const { yardId } = useYardStore();
   const { data: session } = useSession();
+  const router = useRouter();
 
   // Centralized data fetching with auto-refresh
   const { data, isLoading } = useGuardDashboard(yardId);
 
-  // Track active action mode for modal management
+  // Track action mode (IN, OUT, INSPECTION)
   const [mode, setMode] = useState<"IN" | "OUT" | "INSPECTION" | null>(null);
-  
-  // Track IN yard modal state
+
+  // Track In-Yard modal
   const [showInYard, setShowInYard] = useState(false);
 
+  // Preflight logic
+  const preflight = usePreflightTrailer();
+  const { setSelection } = useGuardFlowStore();
+  const [warn, setWarn] = useState<{
+    open: boolean;
+    flags: { inspectionExpired: boolean; damaged: boolean };
+    trailer?: string;
+    mode?: "IN" | "OUT" | "INSPECTION";
+  }>({ open: false, flags: { inspectionExpired: false, damaged: false } });
+
   /**
-   * Generate time-based greeting message
-   * @performance Memoized to prevent unnecessary recalculations
-   * @returns {string} Personalized greeting based on current time
+   * Time-based greeting
    */
   const greet = useMemo(() => {
     const h = new Date().getHours();
@@ -96,11 +86,9 @@ export default function HomeClient() {
     return "Good evening";
   }, []);
 
-  // Extract first name from user session for personalization
   const firstName =
     (session?.user?.name?.trim().split(/\s+/)[0] as string | undefined) ?? "";
 
-  // Extract statistics data with fallback
   const counts = data?.stats ?? null;
 
   return (
@@ -165,26 +153,78 @@ export default function HomeClient() {
 
       {/* ================= Modals ================= */}
       <TrailerSearchModal
-        key={mode ?? "none"}                 // Forces a clean mount per open
+        key={mode ?? "none"} // forces a clean mount
         open={mode !== null}
         mode={mode ?? "IN"}
         onClose={() => setMode(null)}
-        onContinue={(trailerNumber) => {
-          // TODO: Route to guard data page with selected trailer
-          console.log(`Continue with trailer: ${trailerNumber} in mode: ${mode}`);
+        onContinue={async (trailerNumber) => {
+          if (!mode) return;
+          const res = await preflight(trailerNumber);
+
+          if (res.exists && (res.flags.inspectionExpired || res.flags.damaged)) {
+            // show preflight warning modal
+            setWarn({
+              open: true,
+              flags: res.flags,
+              trailer: trailerNumber,
+              mode,
+            });
+            return;
+          }
+
+          // proceed directly if no warnings
+          setSelection({
+            mode,
+            trailerNumber,
+            flags: {
+              inspectionExpired: !!res.flags.inspectionExpired,
+              damaged: !!res.flags.damaged,
+            },
+          });
           setMode(null);
+          router.push(
+            `/guard/data?mode=${mode}&trailer=${encodeURIComponent(
+              trailerNumber
+            )}`
+          );
         }}
         onCreateNew={() => {
-          // TODO: Open new trailer form
-          console.log("Create new trailer");
+          if (!mode) return;
+          setSelection({
+            mode,
+            trailerNumber: "",
+            flags: { inspectionExpired: false, damaged: false },
+          });
           setMode(null);
+          router.push(`/guard/data?mode=${mode}&new=1`);
         }}
       />
-      
-      <InYardModal
-        open={showInYard}
-        onClose={() => setShowInYard(false)}
+
+      {/* Preflight Warning Modal */}
+      <PreflightWarnings
+        open={warn.open}
+        showInspection={warn.flags.inspectionExpired}
+        showDamaged={warn.flags.damaged}
+        onClose={() => setWarn((v) => ({ ...v, open: false }))}
+        onContinue={() => {
+          if (!warn.trailer || !warn.mode) return;
+          setSelection({
+            mode: warn.mode,
+            trailerNumber: warn.trailer,
+            flags: warn.flags,
+          });
+          setWarn((v) => ({ ...v, open: false }));
+          setMode(null);
+          router.push(
+            `/guard/data?mode=${warn.mode}&trailer=${encodeURIComponent(
+              warn.trailer
+            )}`
+          );
+        }}
       />
+
+      {/* In-Yard Modal */}
+      <InYardModal open={showInYard} onClose={() => setShowInYard(false)} />
     </motion.section>
   );
 }

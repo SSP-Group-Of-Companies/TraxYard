@@ -495,12 +495,16 @@ export default function TrailerSearchModal({
                           >
                             <td className="px-3 py-3 font-medium text-gray-900 flex items-center gap-2">
                               {trailer.trailerNumber}
-                              {(inspectionExpired || isDamaged) && (
+                              {inspectionExpired && (
                                 <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">
                                   <AlertTriangle className="h-3 w-3" />
-                                  {inspectionExpired && "Inspection due"}
-                                  {inspectionExpired && isDamaged && " · "}
-                                  {isDamaged && "Damaged"}
+                                  Inspection due
+                                </span>
+                              )}
+                              {isDamaged && (
+                                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-800">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Damaged
                                 </span>
                               )}
                             </td>
