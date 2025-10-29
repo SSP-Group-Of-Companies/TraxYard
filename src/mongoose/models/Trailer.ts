@@ -5,7 +5,7 @@ import { EYardId } from "@/types/yard.types";
 import { enumMsg, upperTrim } from "@/lib/utils/stringUtils";
 import { EMovementType } from "@/types/movement.types";
 
-/** Mongoose doc type (hydrate-aware). Keep this ONLY in the model file. */
+/**  Mongoose doc type (hydrate-aware). Keep this ONLY in the model file. */
 export type TTrailerDoc = HydratedDocument<TTrailer>;
 
 const TrailerSchema = new Schema<TTrailer>(
