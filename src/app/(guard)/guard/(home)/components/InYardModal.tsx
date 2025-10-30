@@ -8,6 +8,7 @@ import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Search } from "lucide-react";
 import { useYardStore } from "@/store/useYardStore";
+import { yards } from "@/data/yards";
 import { useInYardTrailers } from "../hooks/useInYardTrailers";
 import Pager from "@/components/ui/Pager";
 import { modalAnimations } from "@/lib/animations";
@@ -98,6 +99,8 @@ export default function InYardModal({ open, onClose }: Props) {
     };
   }, [open, onClose, meta, setPage]);
 
+  const yardName = yards.find((y) => y.id === yardId)?.name ?? yardId;
+
   return (
     <AnimatePresence>
       {open && (
@@ -127,20 +130,27 @@ export default function InYardModal({ open, onClose }: Props) {
             variants={modalAnimations.content}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-black/10">
-              <h2
-                id="inyard-title"
-                className="text-lg sm:text-xl font-semibold text-gray-900"
-              >
-                Trailers in Yard
-              </h2>
-              <button
-                aria-label="Close modal"
-                className="p-2 rounded-md hover:bg-black/5 active:scale-95 transition-colors"
-                onClick={onClose}
-              >
-                <X className="h-5 w-5 text-gray-500" />
-              </button>
+            <div className="px-4 sm:px-6 py-4 border-b border-black/10">
+              <div className="grid grid-cols-3 items-center">
+                <div className="text-sm font-medium text-gray-700 truncate" aria-label="Yard name">
+                  {yardName}
+                </div>
+                <h2
+                  id="inyard-title"
+                  className="justify-self-center text-lg sm:text-xl font-semibold text-gray-900"
+                >
+                  All Trailers Currently IN Yard
+                </h2>
+                <div className="justify-self-end">
+                  <button
+                    aria-label="Close modal"
+                    className="p-2 rounded-md hover:bg-black/5 active:scale-95 transition-colors"
+                    onClick={onClose}
+                  >
+                    <X className="h-5 w-5 text-gray-500" />
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Body */}
@@ -156,6 +166,10 @@ export default function InYardModal({ open, onClose }: Props) {
                     className="w-full rounded-xl border border-gray-200 px-10 py-2.5 text-sm
                                outline-none focus:ring-2 focus:ring-[#0B63B6]/30 focus:border-[#0B63B6]
                                placeholder:text-gray-400"
+                    aria-label="Search trailers in yard by trailer or truck number"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
                     onChange={(e) => setQuery(e.target.value)}
                   />
                 </div>
@@ -194,7 +208,7 @@ export default function InYardModal({ open, onClose }: Props) {
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white divide-y divide-gray-200" aria-busy={loading ? "true" : "false"}>
                       {loading && (
                         <tr>
                           <td

@@ -33,6 +33,13 @@
   --color-error: #dc2626;
   --color-orange: #f97316;
   --color-red: #ef4444;
+  --color-red-hover: #fef2f2; /* Very light red for hover states */
+  --color-green-hover: #f0fdf4; /* Very light green for hover states */
+  --color-primary-action: #f8fafc; /* Light off-white for primary actions */
+  --color-primary-action-hover: #e2e8f0; /* Slightly darker gray for hover */
+  
+  /* Weather gradient for UI components */
+  --weather-gradient: linear-gradient(135deg, var(--color-blue), var(--color-green));
 }
 
 /* 3) Base reset & typography */

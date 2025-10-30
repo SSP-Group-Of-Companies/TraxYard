@@ -32,13 +32,14 @@
  * - Fast loading with simple content
  * - Middleware handles all redirects
  */
-export default function RootPage() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-        <p className="text-gray-600">Loading TraxYard...</p>
-      </div>
-    </div>
-  );
+import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
+import { authOptions } from "@/lib/auth/authOptions";
+
+export default async function RootPage() {
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    redirect("/login");
+  }
+  redirect("/guard");
 }

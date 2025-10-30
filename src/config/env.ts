@@ -16,8 +16,9 @@ export const ENC_KEY = process.env.ENC_KEY!;
 
 // ░ Auth
 export const DISABLE_AUTH = process.env.DISABLE_AUTH === "true";
-export const AUTH_COOKIE_DOMAIN = process.env.AUTH_COOKIE_DOMAIN! || ".sspportal.lvh.me";
-export const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME! || "";
+export const AUTH_COOKIE_DOMAIN = process.env.AUTH_COOKIE_DOMAIN ?? ".sspportal.lvh.me";
+// Provide a sane default cookie name to avoid empty-string misconfig breaking sessions
+export const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? "traxyard.session-token";
 export const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET!;
 
 // Whitelist hosts we allow for callbackUrl (comma‑separated)

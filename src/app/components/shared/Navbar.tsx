@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @fileoverview Navbar (Guard/Dashboard)
+ * - Left: logo linking to the section home (guard or dashboard)
+ * - Right: yard switcher and profile dropdown
+ * - Accessible, responsive, blur + elevation per design tokens
+ */
+
 import Link from "next/link";
 import Image from "next/image";
 import ProfileDropdown from "./ProfileDropdown";

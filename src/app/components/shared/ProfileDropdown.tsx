@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * @fileoverview ProfileDropdown
+ * - Shows session user avatar/name/email
+ * - Logout link (relative for guard, absolute for dashboard when base exists)
+ * - Accessible: closes on outside click / Escape; proper roles
+ */
+
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
