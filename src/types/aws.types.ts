@@ -30,6 +30,9 @@ export enum ES3Folder {
 
   // Movement section 1: Free-form uploads
   DOCUMENTS = "documents",
+
+  // Reports
+  REPORTS = "reports",
 }
 
 export interface IPresignRequest {

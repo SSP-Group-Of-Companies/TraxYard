@@ -1,3 +1,4 @@
+// src/config/env.ts
 // ─────────────────────────────────────────────────────────────────────────────
 // Environment Variables
 // Grouped by concern and lightly documented for clarity
@@ -51,3 +52,6 @@ export const NEXT_IMAGE_DOMAINS = process.env.NEXT_IMAGE_DOMAINS!;
 
 // ░ Public URLs
 export const NEXT_PUBLIC_PORTAL_BASE_URL = process.env.NEXT_PUBLIC_PORTAL_BASE_URL!;
+
+// ░ Reports Export (SQS)
+export const REPORTS_SQS_URL = process.env.REPORTS_SQS_URL!; // e.g., https://sqs.ca-central-1.amazonaws.com/123456789012/traxyard-report-jobs
