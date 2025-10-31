@@ -14,6 +14,8 @@ type UploadPickerProps = {
   filesText?: string;
   className?: string;
   showDefaultTile?: boolean;
+  /** dropdown: opens below trigger; center: overlays centered within wrapper */
+  menuPlacement?: "dropdown" | "center";
 };
 
 export default function UploadPicker({
@@ -27,6 +29,7 @@ export default function UploadPicker({
   filesText = "Choose from files",
   className,
   showDefaultTile = true,
+  menuPlacement = "dropdown",
 }: UploadPickerProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
@@ -87,38 +90,80 @@ export default function UploadPicker({
       </button>
 
       {open && (
-        <div
-          id={menuId}
-          role="menu"
-          aria-labelledby={btnId}
-          className="absolute top-full left-0 mt-2 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden w-full min-w-[220px] z-[9999]"
-        >
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setOpen(false);
-              cameraInputRef.current?.click();
-            }}
-            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50 text-left text-sm font-medium text-gray-800 transition-colors"
+        menuPlacement === "dropdown" ? (
+          <div
+            id={menuId}
+            role="menu"
+            aria-labelledby={btnId}
+            className="absolute top-full left-0 mt-2 rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden w-full min-w-[220px] z-[9999]"
           >
-            <Camera className="w-4 h-4 text-blue-600" />
-            {cameraText}
-          </button>
-          <div className="border-t border-gray-200" />
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setOpen(false);
-              fileInputRef.current?.click();
-            }}
-            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50 text-left text-sm font-medium text-gray-800 transition-colors"
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                cameraInputRef.current?.click();
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50 text-left text-sm font-medium text-gray-800 transition-colors"
+            >
+              <Camera className="w-4 h-4 text-blue-600" />
+              {cameraText}
+            </button>
+            <div className="border-t border-gray-200" />
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                fileInputRef.current?.click();
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50 text-left text-sm font-medium text-gray-800 transition-colors"
+            >
+              <ImageIcon className="w-4 h-4 text-blue-600" />
+              {filesText}
+            </button>
+          </div>
+        ) : (
+          <div
+            id={menuId}
+            role="menu"
+            aria-labelledby={btnId}
+            className="absolute inset-0 z-[9999] grid place-items-center"
           >
-            <ImageIcon className="w-4 h-4 text-blue-600" />
-            {filesText}
-          </button>
-        </div>
+            <button
+              aria-label="Close"
+              className="absolute inset-0 bg-black/20 backdrop-blur-[1px]"
+              onClick={() => setOpen(false)}
+            />
+            <div className="relative w-[min(300px,90%)] rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden">
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  cameraInputRef.current?.click();
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-left text-sm font-medium text-gray-900 transition-colors"
+              >
+                <Camera className="w-4 h-4 text-[var(--color-green)]" />
+                {cameraText}
+              </button>
+              <div className="border-t border-gray-200" />
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  fileInputRef.current?.click();
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-left text-sm font-medium text-gray-900 transition-colors"
+              >
+                <ImageIcon className="w-4 h-4 text-[var(--color-green)]" />
+                {filesText}
+              </button>
+            </div>
+          </div>
+        )
       )}
 
       {/* Hidden inputs */}

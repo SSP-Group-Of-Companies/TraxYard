@@ -9,9 +9,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { FormProvider, useForm } from "react-hook-form";
-import type { TPrimaryDetailsForm } from "@/types/frontend/form/primaryDetails.form";
+import type { TMovementForm } from "@/types/frontend/form/movement.form";
 import PrimaryDetailsSection from "./sections/PrimaryDetailsSection";
 import AnglesSection from "./sections/AnglesSection";
+import TiresSection from "./sections/TiresSection";
 import { PrimaryDetailsFormSchema } from "@/types/schemas/primaryDetails.schema";
 import { zodRHFResolver } from "@/lib/validation/zodRHFResolver";
 import AnimatedPage from "@/app/components/ui/AnimatedPage";
@@ -22,9 +23,9 @@ export default function GuardDataPage() {
   const sp = useSearchParams();
   const initialMode = sp.get("mode") || "IN";
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [unlocked, setUnlocked] = useState<{ primary: boolean; angles: boolean }>({ primary: true, angles: false });
+  const [unlocked, setUnlocked] = useState<{ primary: boolean; angles: boolean; tires: boolean }>({ primary: true, angles: false, tires: false });
 
-  const methods = useForm<TPrimaryDetailsForm>({
+  const methods = useForm<TMovementForm>({
     mode: "onSubmit",
     reValidateMode: "onChange",
     resolver: zodRHFResolver(PrimaryDetailsFormSchema),
@@ -39,6 +40,16 @@ export default function GuardDataPage() {
         trailerBound: undefined,
       },
       documents: [],
+      angles: {
+        FRONT: { photo: null },
+        LEFT_FRONT: { photo: null },
+        LEFT_REAR: { photo: null },
+        REAR: { photo: null },
+        RIGHT_REAR: { photo: null },
+        RIGHT_FRONT: { photo: null },
+        TRAILER_NUMBER_VIN: { photo: null },
+        LANDING_GEAR_UNDERCARRIAGE: { photo: null },
+      },
     },
   });
 
@@ -95,6 +106,7 @@ export default function GuardDataPage() {
         id: "primary",
         node: (
           <PrimaryDetailsSection
+            completed={unlocked.angles}
             onNext={async () => {
               // Use handleSubmit to run the resolver and populate field-level errors exactly like a real submit
               const ok = await new Promise<boolean>((resolve) => {
@@ -111,7 +123,7 @@ export default function GuardDataPage() {
                 });
                 return;
               }
-              setUnlocked((u: { primary: boolean; angles: boolean }) => ({ ...u, angles: true }));
+              setUnlocked((u: { primary: boolean; angles: boolean; tires: boolean }) => ({ ...u, angles: true }));
               setTimeout(() => {
                 document.getElementById("angles-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
               }, 0);
@@ -120,9 +132,20 @@ export default function GuardDataPage() {
         ),
       },
     ];
-    if (unlocked.angles) list.push({ id: "angles", node: <AnglesSection /> });
+    if (unlocked.angles) list.push({ id: "angles", node: (
+      <AnglesSection
+        completed={unlocked.tires}
+        onNext={() => {
+          setUnlocked((u: { primary: boolean; angles: boolean; tires: boolean }) => ({ ...u, tires: true }));
+          setTimeout(() => {
+            document.getElementById("tires-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 0);
+        }}
+      />
+    ) });
+    if (unlocked.tires) list.push({ id: "tires", node: <TiresSection /> });
     return list;
-  }, [methods, unlocked.angles]);
+  }, [methods, unlocked.angles, unlocked.tires]);
 
   return (
     <FormProvider {...methods}>

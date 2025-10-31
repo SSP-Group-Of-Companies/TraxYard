@@ -8,7 +8,7 @@
 
 import { useId, useState } from "react";
 import { useFieldArray, useFormContext, Controller, useWatch } from "react-hook-form";
-import type { TPrimaryDetailsForm } from "@/types/frontend/form/primaryDetails.form";
+import type { TMovementForm } from "@/types/frontend/form/movement.form";
 import type { IFileAsset } from "@/types/shared.types";
 import UploadPicker from "@/app/components/media/UploadPicker";
 import { uploadToS3Presigned, deleteTempFile } from "@/lib/utils/s3Helper";
@@ -39,7 +39,7 @@ export default function DocumentsField({
     control,
     setValue,
     formState: { errors },
-  } = useFormContext<TPrimaryDetailsForm>();
+  } = useFormContext<TMovementForm>();
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -92,9 +92,8 @@ export default function DocumentsField({
         shouldValidate: true,
       });
       setUploadError((e) => {
-        const copy = { ...e } as Record<number, string>;
-        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-        delete (copy as any)[idx];
+        const copy: Record<number, string> = { ...e };
+        delete copy[idx as number];
         return copy;
       });
     } catch (err: any) {
@@ -114,9 +113,9 @@ export default function DocumentsField({
     >
       {/* Legend-like top header strip */}
       <legend className="absolute -top-3 left-3">
-        <span className="rounded-full bg-white px-2 py-0.5 text-sm font-semibold text-gray-800">
+        <span className="rounded-full bg-white/70 ring-1 ring-gray-200 px-2 py-0.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
           {label}{" "}
-          <span className="text-xs font-normal text-gray-500">
+          <span className="text-[10px] font-normal text-gray-500">
             ({fields.length}/{maxDocs})
           </span>
         </span>

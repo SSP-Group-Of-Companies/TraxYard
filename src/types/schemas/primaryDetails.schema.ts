@@ -34,17 +34,7 @@ export const PrimaryDetailsFormSchema = z.object({
     safetyInspectionExpiry: z
       .string()
       .trim()
-      .min(1, "Safety inspection expiry is required") // expects YYYY-MM-DD
-      .refine((val) => {
-        if (!val) return false;
-        const parts = val.split("-").map((n) => Number(n));
-        if (parts.length !== 3 || parts.some((x) => Number.isNaN(x))) return false;
-        const dLocal = new Date(parts[0], parts[1] - 1, parts[2]);
-        dLocal.setHours(0, 0, 0, 0);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        return dLocal.getTime() > today.getTime();
-      }, { message: "Date must be in the future" }),
+      .min(1, "Safety inspection expiry is required"), // expects YYYY-MM-DD
     customerName: z.string().trim().min(1, "Customer name is required"),
     destination: z.string().trim().min(1, "Destination is required"),
     orderNumber: z.string().trim().min(1, "Order number is required"),
