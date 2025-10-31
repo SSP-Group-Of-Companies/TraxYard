@@ -367,3 +367,106 @@ export async function deleteTempFile(file?: IFileAsset): Promise<boolean> {
   await deleteTempFiles([file.s3Key]);
   return true;
 }
+
+function sanitizeDownloadName(name: string): string {
+  // remove quotes and path/invalid chars
+  return name.replace(/["<>:\\|?*\n\r\t]+/g, "").trim();
+}
+
+function getExtFromKey(key: string): string | undefined {
+  const base = key.split("/").pop() || "";
+  const dot = base.lastIndexOf(".");
+  if (dot > 0 && dot < base.length - 1) return base.slice(dot + 1);
+  return undefined;
+}
+
+function ensureExtension(filename: string, key: string): string {
+  // if caller didn't pass an extension, append from the key (if available)
+  if (/\.[A-Za-z0-9]+$/.test(filename)) return filename;
+  const ext = getExtFromKey(key);
+  return ext ? `${filename}.${ext}` : filename; // fall back to no ext if we truly can't infer
+}
+
+/**
+ * Generate a presigned GET URL that downloads with a stable filename (with extension)
+ * and the object's original Content-Type when available.
+ */
+export async function getPresignedGetUrl({
+  key,
+  filename,
+  expiresIn = DEFAULT_PRESIGN_EXPIRY_SECONDS,
+}: {
+  key: string;
+  filename?: string; // we’ll append extension if missing
+  expiresIn?: number;
+}): Promise<{ url: string }> {
+  // 1) Look up stored metadata to preserve real content-type
+  let storedContentType: string | undefined;
+  try {
+    const head = await s3.send(new HeadObjectCommand({ Bucket: _AWS_BUCKET_NAME, Key: key }));
+    storedContentType = head.ContentType || undefined;
+  } catch {
+    // If Head fails, we’ll still issue a URL, but use a safe default content-type below
+  }
+
+  // 2) Build a safe, extension-inclusive filename
+  const baseName = sanitizeDownloadName(filename || key.split("/").pop() || "download");
+  const finalName = ensureExtension(baseName, key);
+  const encoded = encodeURIComponent(finalName);
+
+  // 3) Build Content-Disposition
+  const contentDisposition = `attachment; filename="${finalName}"; filename*=UTF-8''${encoded}`;
+
+  // 4) Prefer stored content-type; otherwise, fall back to octet-stream
+  const responseContentType = storedContentType || "application/octet-stream";
+
+  const command = new GetObjectCommand({
+    Bucket: _AWS_BUCKET_NAME,
+    Key: key,
+    ResponseContentDisposition: contentDisposition,
+    ResponseContentType: responseContentType,
+  });
+
+  const url = await getSignedUrl(s3, command, { expiresIn });
+  return { url };
+}
+
+/**
+ * Frontend helper to fetch a presigned GET URL that ALWAYS downloads.
+ *
+ * Example:
+ *   const url = await getDownloadUrlFromS3Key({
+ *     s3Key: "submissions/licenses/123/abc.jpeg",
+ *     filename: "driver-license" // extension will be inferred from s3Key if missing
+ *   });
+ *   // `url` is a time-limited (presigned) HTTPS link. You can trigger download with:
+ *   // const a = document.createElement("a"); a.href = url; a.click();
+ *
+ * Returns:
+ *   A string — the presigned GET URL (e.g., "https://bucket.s3...&X-Amz-Signature=...").
+ *   The server sets Content-Disposition to "attachment" with a safe filename (and extension),
+ *   and preserves the original Content-Type when available.
+ */
+export async function getDownloadUrlFromS3Key({
+  s3Key,
+  filename,
+  expiresIn,
+}: {
+  s3Key: string;
+  filename?: string; // optional; if no extension, server appends from the key
+  expiresIn?: number;
+}): Promise<string> {
+  const res = await fetch("/api/v1/presign-get", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key: s3Key, filename, expiresIn }),
+  });
+
+  if (!res.ok) {
+    const { message } = await res.json().catch(() => ({ message: "" }));
+    throw new Error(message || "Failed to get presigned download URL.");
+  }
+
+  const { data } = await res.json();
+  return data.url as string;
+}
