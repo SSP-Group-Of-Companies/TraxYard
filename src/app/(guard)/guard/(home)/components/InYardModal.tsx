@@ -47,6 +47,10 @@ export default function InYardModal({ open, onClose }: Props) {
     }
   );
 
+  // keep latest meta in a ref without re-wiring listeners
+  const metaRef = useRef<typeof meta | null>(null);
+  useEffect(() => { metaRef.current = meta; }, [meta]);
+
   useEffect(() => {
     if (!open) return;
     lastFocusedElement.current = document.activeElement as HTMLElement;
@@ -58,11 +62,14 @@ export default function InYardModal({ open, onClose }: Props) {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
-      else if (e.key === "ArrowRight" && meta?.hasNext) setPage(meta.page + 1);
-      else if (e.key === "ArrowLeft" && meta?.hasPrev) setPage(meta.page - 1);
+      // Arrow navigation with latest meta via ref
+      const m = metaRef.current as typeof meta | null;
+      if (!m) return;
+      if (e.key === "ArrowRight" && m.hasNext) setPage(m.page + 1);
+      else if (e.key === "ArrowLeft" && m.hasPrev) setPage(m.page - 1);
     };
 
-    // Focus trap for Tab cycling
+    // Focus trap for Tab cycling (stable)
     const handleTrap = (e: KeyboardEvent) => {
       if (e.key !== "Tab" || !dialogRef.current) return;
       const nodes = getFocusables(dialogRef.current);
@@ -97,7 +104,7 @@ export default function InYardModal({ open, onClose }: Props) {
         lastFocusedElement.current = null;
       }
     };
-  }, [open, onClose, meta, setPage]);
+  }, [open, onClose, setPage]);
 
   const yardName = yards.find((y) => y.id === yardId)?.name ?? yardId;
 
@@ -105,7 +112,10 @@ export default function InYardModal({ open, onClose }: Props) {
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4"
+          className="fixed inset-0 z-[80] flex items-start sm:items-center justify-center p-2 sm:p-4 overscroll-contain"
+          style={{
+            paddingTop: "calc(var(--nav-height,56px) + env(safe-area-inset-top) + 8px)",
+          }}
           aria-modal="true"
           role="dialog"
           aria-labelledby="inyard-title"
@@ -126,54 +136,36 @@ export default function InYardModal({ open, onClose }: Props) {
             ref={dialogRef}
             role="document"
             className="relative w-full max-w-[900px] rounded-2xl bg-white ring-1 ring-black/10 shadow-xl
-                       max-h-[85vh] overflow-hidden flex flex-col"
+                      max-h-[85vh] overflow-hidden flex flex-col"
+            style={{ maxHeight: "85dvh" }}
             variants={modalAnimations.content}
           >
             {/* Header */}
             <div className="px-4 sm:px-6 py-4 border-b border-black/10">
-              <div className="grid grid-cols-3 items-center">
-                <div className="text-sm font-medium text-gray-700 truncate" aria-label="Yard name">
-                  {yardName}
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 id="inyard-title" className="text-base sm:text-lg font-semibold text-gray-900 truncate">
+                    All Trailers Currently IN Yard
+                  </h2>
+                  <div className="mt-0.5 text-xs text-gray-500 truncate" aria-label="Yard name">
+                    {yardName}
+                  </div>
                 </div>
-                <h2
-                  id="inyard-title"
-                  className="justify-self-center text-lg sm:text-xl font-semibold text-gray-900"
+                <button
+                  aria-label="Close modal"
+                  className="p-2 rounded-md hover:bg-black/5 active:scale-95 transition-colors shrink-0"
+                  onClick={onClose}
                 >
-                  All Trailers Currently IN Yard
-                </h2>
-                <div className="justify-self-end">
-                  <button
-                    aria-label="Close modal"
-                    className="p-2 rounded-md hover:bg-black/5 active:scale-95 transition-colors"
-                    onClick={onClose}
-                  >
-                    <X className="h-5 w-5 text-gray-500" />
-                  </button>
-                </div>
+                  <X className="h-5 w-5 text-gray-500" />
+                </button>
               </div>
             </div>
 
             {/* Body */}
             <div className="p-3 sm:p-6 overflow-y-auto">
               {/* Controls */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                <div className="relative w-full sm:flex-1">
-                  <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    placeholder="Search trailer # or truck #"
-                    className="w-full rounded-xl border border-gray-200 px-10 py-2.5 text-sm
-                               outline-none focus:ring-2 focus:ring-[#0B63B6]/30 focus:border-[#0B63B6]
-                               placeholder:text-gray-400"
-                    aria-label="Search trailers in yard by trailer or truck number"
-                    autoComplete="off"
-                    autoCorrect="off"
-                    spellCheck={false}
-                    onChange={(e) => setQuery(e.target.value)}
-                  />
-                </div>
-                <div className="shrink-0 self-end sm:self-auto">
+              <div className="flex flex-col gap-2 sm:gap-3 mb-3 sm:mb-4">
+                <div className="shrink-0 flex justify-end">
                   <Pager
                     page={meta?.page ?? 1}
                     totalPages={meta?.totalPages ?? 1}
@@ -184,6 +176,20 @@ export default function InYardModal({ open, onClose }: Props) {
                     total={meta?.total ?? rows.length}
                     pageSize={meta?.pageSize ?? 20}
                     countVariant="muted"
+                  />
+                </div>
+                <div className="relative w-full">
+                  <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    placeholder="Search trailer # or truck #"
+                    className="w-full rounded-xl border border-gray-200 px-10 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#0B63B6]/30 focus:border-[#0B63B6] placeholder:text-gray-400"
+                    aria-label="Search trailers in yard by trailer or truck number"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    onChange={(e) => setQuery(e.target.value)}
                   />
                 </div>
               </div>

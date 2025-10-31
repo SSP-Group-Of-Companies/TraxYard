@@ -81,7 +81,7 @@ export default function HomeClient() {
 
   return (
     <motion.section
-      className="container-guard"
+      className="container-guard pb-20 sm:pb-24"
       variants={staggerContainer}
       initial="initial"
       animate="animate"
@@ -110,7 +110,7 @@ export default function HomeClient() {
         </motion.div>
       </motion.div>
 
-      <motion.div className="space-y-4 sm:space-y-6" variants={staggerItem}>
+      <motion.div className="space-y-6 md:space-y-8" variants={staggerItem}>
         <motion.div variants={fadeInVariants}>
           <CapacityCard
             yardName={data?.yard?.name ?? null}
@@ -130,7 +130,7 @@ export default function HomeClient() {
           />
         </motion.div>
 
-        <motion.div className="mt-6" variants={fadeInVariants}>
+        <motion.div variants={fadeInVariants}>
           <ActionButtons active={mode} onSelect={(m) => setMode(m)} />
         </motion.div>
       </motion.div>

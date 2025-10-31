@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 export function GET() {
   return NextResponse.json({ error: "API route not found" }, { status: 404 });
 }

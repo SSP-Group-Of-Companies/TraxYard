@@ -289,7 +289,10 @@ export default function TrailerSearchModal({
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4"
+          className="fixed inset-0 z-[80] flex items-start sm:items-center justify-center p-2 sm:p-4 overscroll-contain"
+          style={{
+            paddingTop: "calc(var(--nav-height,56px) + env(safe-area-inset-top) + 8px)",
+          }}
       role="dialog"
       aria-modal="true"
           aria-labelledby="ts-title"
@@ -310,87 +313,32 @@ export default function TrailerSearchModal({
             ref={dialogRef}
             role="document"
             className="relative w-full max-w-[900px] rounded-2xl bg-white ring-1 ring-black/10 shadow-xl
-                       max-h-[85vh] overflow-hidden flex flex-col"
+                      max-h-[85vh] overflow-hidden flex flex-col"
+            style={{ maxHeight: "85dvh" }}
             variants={modalAnimations.content}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-black/10">
-              <h2 id="ts-title" className="text-lg sm:text-xl font-semibold text-gray-900">
-                Search Trailers {mode === "IN" ? "(Coming IN)" : mode === "OUT" ? "(Going OUT)" : "(Inspection)"}
-              </h2>
-          <button
-                aria-label="Close modal"
-                className="p-2 rounded-md hover:bg-black/5 active:scale-95 transition-colors"
-            onClick={onClose}
-          >
-                <X className="h-5 w-5 text-gray-500" />
-          </button>
-        </div>
+            <div className="px-4 sm:px-6 py-4 border-b border-black/10">
+              <div className="flex items-start justify-between gap-3">
+                <h2 id="ts-title" className="text-base sm:text-lg font-semibold text-gray-900">
+                  Search Trailers {mode === "IN" ? "(Coming IN)" : mode === "OUT" ? "(Going OUT)" : "(Inspection)"}
+                </h2>
+                <button
+                  aria-label="Close modal"
+                  className="p-2 rounded-md hover:bg-black/5 active:scale-95 transition-colors shrink-0"
+                  onClick={onClose}
+                >
+                  <X className="h-5 w-5 text-gray-500" />
+                </button>
+              </div>
+            </div>
 
             {/* Body */}
             <div className="p-3 sm:p-6 overflow-y-auto">
               {/* Search Controls */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                <div className="relative w-full sm:flex-1">
-                  <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    placeholder="Search trailer number"
-                    className="w-full rounded-xl border border-gray-200 px-10 py-2.5 text-sm
-                               outline-none focus:ring-2 focus:ring-[#0B63B6]/30 focus:border-[#0B63B6]
-                               placeholder:text-gray-400"
-                    autoComplete="off"
-                    autoCorrect="off"
-                    spellCheck={false}
-                    inputMode="search"
-                    value={typed}
-                    onChange={(e) => setTyped(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        const query = typed.trim();
-                        if (query) {
-                          // Find exact match and continue if found
-                          const match = rows.find(row => row.trailerNumber === query);
-                          if (match) {
-                            onContinue(match.trailerNumber);
-                          }
-                        }
-                      }
-                    }}
-                  />
-                  {/* Clear button */}
-                  {typed.length > 0 && (
-                    <button
-                      type="button"
-                      className="absolute right-3 top-2.5 h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors"
-                      onClick={() => setTyped("")}
-                      aria-label="Clear search"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
-                  
-                  {/* Inline Status Labels */}
-                  {statusLabel && (
-                    <div
-                      className={`mt-1 text-xs ${
-                        statusLabel.kind === "new" 
-                          ? "text-red-600" 
-                          : statusLabel.kind === "existingWarn" 
-                            ? "text-amber-600" 
-                            : "text-[var(--color-green)]"
-                      }`}
-                      role="status"
-                      aria-live="polite"
-                    >
-                      {statusLabel.text}
-                    </div>
-                  )}
-                </div>
-                
-                {/* Pagination Controls */}
-                <div className="shrink-0 self-end sm:self-auto">
+              <div className="flex flex-col gap-2 sm:gap-3 mb-3 sm:mb-4">
+                {/* Pagination Controls (first) */}
+                <div className="shrink-0 flex justify-end">
                   <Pager
                     page={meta?.page ?? page}
                     totalPages={meta?.totalPages ?? 1}
@@ -402,6 +350,53 @@ export default function TrailerSearchModal({
                     showCount
                     countVariant="muted"
                   />
+                </div>
+
+                {/* Search */}
+                <div className="relative w-full">
+                  <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    placeholder="Search trailer number"
+                    className="w-full rounded-xl border border-gray-200 px-10 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#0B63B6]/30 focus:border-[#0B63B6] placeholder:text-gray-400"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    inputMode="search"
+                    value={typed}
+                    onChange={(e) => setTyped(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        const query = typed.trim();
+                        if (query) {
+                          const match = rows.find(row => row.trailerNumber === query);
+                          if (match) onContinue(match.trailerNumber);
+                        }
+                      }
+                    }}
+                  />
+                  {typed.length > 0 && (
+                    <button
+                      type="button"
+                      className="absolute right-3 top-2.5 h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors"
+                      onClick={() => setTyped("")}
+                      aria-label="Clear search"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                  {statusLabel && (
+                    <div
+                      className={`mt-1 text-xs ${
+                        statusLabel.kind === "new" ? "text-red-600" : statusLabel.kind === "existingWarn" ? "text-amber-600" : "text-[var(--color-green)]"}
+                      }`}
+                      role="status"
+                      aria-live="polite"
+                    >
+                      {statusLabel.text}
+                    </div>
+                  )}
                 </div>
               </div>
 

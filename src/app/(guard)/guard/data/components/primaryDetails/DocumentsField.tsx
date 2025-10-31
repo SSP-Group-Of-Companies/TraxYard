@@ -14,6 +14,7 @@ import UploadPicker from "@/app/components/media/UploadPicker";
 import { uploadToS3Presigned, deleteTempFile } from "@/lib/utils/s3Helper";
 import { ES3Folder, ES3Namespace } from "@/types/aws.types";
 import { Trash2, X, FileText, Camera } from "lucide-react";
+import Image from "next/image";
 
 type DocItem = {
   description: string;
@@ -200,10 +201,13 @@ export default function DocumentsField({
                         >
                           {item.photo ? (
                             isImageMime(item.photo.mimeType) ? (
-                              <img
+                              <Image
                                 src={item.photo.url}
                                 alt={item.photo.originalName || "Document"}
-                                className="object-contain w-full h-full"
+                                fill
+                                sizes="100vw"
+                                unoptimized
+                                className="object-contain"
                               />
                             ) : (
                               <div className="flex flex-col items-center justify-center text-gray-600">
