@@ -330,7 +330,7 @@ export default function TrailerSearchModal({
             ref={dialogRef}
             role="document"
             className="relative w-full max-w-[900px] rounded-2xl bg-white ring-1 ring-black/10 shadow-xl
-                      max-h-[85vh] overflow-hidden flex flex-col"
+                       max-h-[85vh] overflow-hidden flex flex-col"
             style={{ maxHeight: "85dvh" }}
             variants={modalAnimations.content}
           >
@@ -338,17 +338,17 @@ export default function TrailerSearchModal({
             <div className="px-4 sm:px-6 py-4 border-b border-black/10">
               <div className="flex items-start justify-between gap-3">
                 <h2 id="ts-title" className="text-base sm:text-lg font-semibold text-gray-900">
-                  Search Trailers {mode === "IN" ? "(Coming IN)" : mode === "OUT" ? "(Going OUT)" : "(Inspection)"}
-                </h2>
-                <button
-                  aria-label="Close modal"
+                Search Trailers {mode === "IN" ? "(Coming IN)" : mode === "OUT" ? "(Going OUT)" : "(Inspection)"}
+              </h2>
+          <button
+                aria-label="Close modal"
                   className="p-2 rounded-md hover:bg-black/5 active:scale-95 transition-colors shrink-0"
-                  onClick={onClose}
-                >
-                  <X className="h-5 w-5 text-gray-500" />
-                </button>
+            onClick={onClose}
+          >
+                <X className="h-5 w-5 text-gray-500" />
+          </button>
               </div>
-            </div>
+        </div>
 
             {/* Body */}
             <div className="p-3 sm:p-6 overflow-y-auto">
