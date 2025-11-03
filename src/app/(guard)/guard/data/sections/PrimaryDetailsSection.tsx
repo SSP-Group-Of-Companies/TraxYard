@@ -144,7 +144,6 @@ export default function PrimaryDetailsSection({ onNext, completed }: { onNext?: 
                   name="trip.safetyInspectionExpiry"
                   label="Safety Inspection Expiry"
                   required
-                  className="min-w-0"
                 />
                 {(() => {
                   if (!safetyDate) return null;
