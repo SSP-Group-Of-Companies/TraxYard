@@ -132,8 +132,8 @@ export default function DocumentsField({
 
         {/* Table shell */}
           <div className="rounded-lg shadow-sm bg-white overflow-visible">
-          {/* Header row */}
-            <div className="grid grid-cols-[1fr_7rem_auto] items-center bg-gray-50 text-sm font-medium text-gray-700 min-w-0">
+          {/* Header row (hidden on small screens) */}
+            <div className="hidden sm:grid grid-cols-[1fr_7rem_auto] items-center bg-gray-50 text-sm font-medium text-gray-700 min-w-0">
             <div className="px-3 py-2 sm:px-4 sm:py-3 min-w-0">Description</div>
             <div className="px-3 py-2 sm:px-4 sm:py-3 whitespace-nowrap">Photo</div>
             <div className="px-3 py-2 sm:px-4 sm:py-3 whitespace-nowrap w-16"></div>
@@ -148,7 +148,7 @@ export default function DocumentsField({
               return (
                 <div
                   key={f.id}
-                  className="grid grid-cols-[1fr_7rem_auto] items-center gap-3 min-w-0 py-2"
+                  className="grid grid-cols-1 sm:grid-cols-[1fr_7rem_auto] items-start gap-3 min-w-0 py-2 sm:py-2 rounded-md sm:rounded-none ring-1 ring-black/5 sm:ring-0 bg-white/60 sm:bg-transparent p-2 sm:p-0"
                 >
                   {/* Description cell */}
                   <div className="px-3 py-2 sm:px-4 sm:py-3 min-w-0">
@@ -192,8 +192,8 @@ export default function DocumentsField({
                         showDefaultTile={false}
                       >
                         <div
-                          className={`w-28 h-20 rounded-lg border-2 border-dashed grid place-items-center overflow-hidden cursor-pointer relative
-                            ${busyIndex === i ? "opacity-70 cursor-wait" : "bg-gray-50 hover:bg-gray-100 hover:border-gray-400 text-gray-600"}
+                          className={`w-full h-40 sm:w-28 sm:h-20 rounded-lg border-2 border-dashed grid place-items-center overflow-hidden cursor-pointer relative
+                            ${busyIndex === i ? "opacity-70 cursor-wait" : "bg-gray-50 hover:bg-gray-100 hover:border-gray-400 text-gray-700"}
                             ${(rowErrors?.photo || uploadError[i]) ? "!border-red-400" : ""}`}
                           title={item.photo?.originalName || (uploadError[i] ? uploadError[i] : "Choose file")}
                           aria-busy={busyIndex === i || undefined}
@@ -219,7 +219,7 @@ export default function DocumentsField({
                             )
                           ) : (
                             <div className="flex flex-col items-center justify-center text-gray-700">
-                              <Camera className="h-5 w-5 mb-1" />
+                              <Camera className="h-5 w-5 mb-1 text-[var(--color-green)]" />
                               <span className={`text-[11px] ${uploadError[i] ? "text-red-600" : ""}`}>
                                 {uploadError[i] ? "Retry upload" : "Camera or files"}
                               </span>
@@ -251,13 +251,13 @@ export default function DocumentsField({
                       )}
                     </div>
                     {/* Photo validation message (reserve space to avoid layout shift) */}
-                    <p className="mt-1 text-[11px] text-red-600 min-h-[14px] w-28 text-center break-words">
+                    <p className="mt-1 text-[11px] text-red-600 min-h-[14px] w-full sm:w-28 text-center break-words">
                       {rowErrors?.photo ? String(rowErrors?.photo?.message || rowErrors?.photo?.s3Key?.message || "Upload a file") : ""}
                     </p>
                   </div>
 
                   {/* Actions cell */}
-                  <div className="px-3 py-2 sm:px-4 sm:py-3 flex items-center justify-center whitespace-nowrap w-16 relative">
+                  <div className="px-3 py-2 sm:px-4 sm:py-3 flex items-center justify-end sm:justify-center whitespace-nowrap w-full sm:w-16 relative">
                     <button
                       type="button"
                       onClick={async () => {

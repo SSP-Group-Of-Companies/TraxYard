@@ -104,9 +104,9 @@ export default function UploadPicker({
                 setOpen(false);
                 cameraInputRef.current?.click();
               }}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50 text-left text-sm font-medium text-gray-800 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[color:var(--color-green)/.08] text-left text-sm font-medium text-gray-800 transition-colors"
             >
-              <Camera className="w-4 h-4 text-blue-600" />
+              <Camera className="w-4 h-4 text-[var(--color-green)]" />
               {cameraText}
             </button>
             <div className="border-t border-gray-200" />
@@ -117,9 +117,9 @@ export default function UploadPicker({
                 setOpen(false);
                 fileInputRef.current?.click();
               }}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50 text-left text-sm font-medium text-gray-800 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[color:var(--color-green)/.08] text-left text-sm font-medium text-gray-800 transition-colors"
             >
-              <ImageIcon className="w-4 h-4 text-blue-600" />
+              <ImageIcon className="w-4 h-4 text-[var(--color-green)]" />
               {filesText}
             </button>
           </div>

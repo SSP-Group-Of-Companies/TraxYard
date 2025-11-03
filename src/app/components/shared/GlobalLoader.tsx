@@ -8,10 +8,15 @@ export default function GlobalLoader() {
   const { visible, message } = useGlobalLoading();
 
   // Colors tuned for TraxYard guard theme
-  const backgroundColor = "rgba(255,255,255,0.7)";
+  // const backgroundColor = "rgba(255,255,255,0.7)";
+  // const textColor = "#6b7280"; // gray-500
+  // const primaryColor = "#005BAA"; // blue
+  // const secondaryColor = "#00B36B"; // green
+
+  const backgroundColor = "rgba(255, 255, 255, 0.7)";
   const textColor = "#6b7280"; // gray-500
-  const primaryColor = "#005BAA"; // blue
-  const secondaryColor = "#00B36B"; // green
+  const primaryColor = "#0071bc"; // SSP blue
+  const secondaryColor = "#e30613"; // SSP red
 
   return (
     <AnimatePresence>
@@ -36,18 +41,26 @@ export default function GlobalLoader() {
                   opacity: 0.25,
                 }}
                 animate={{ scale: [1, 1.15, 1], opacity: [0.25, 0.5, 0.25] }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
               />
 
               {/* Breathing container */}
               <motion.div
                 className="relative w-full h-full"
                 animate={{ scale: [0.96, 1.04, 0.96], rotate: [-1, 1, -1] }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
               >
                 {/* Base icon muted */}
                 <Image
-                  src="/logos/Favicon.png"
+                  src="/logos/loadingFavicon.png"
                   alt="Loading"
                   fill
                   className="object-contain opacity-30 saturate-50"
@@ -56,7 +69,7 @@ export default function GlobalLoader() {
                 {/* Color reveal overlay */}
                 <div className="absolute inset-0 origin-center animate-star-reveal-radial">
                   <Image
-                    src="/logos/Favicon.png"
+                    src="/logos/loadingFavicon.png"
                     alt="Loading"
                     fill
                     className="object-contain"
@@ -73,14 +86,20 @@ export default function GlobalLoader() {
                   style={{
                     backgroundColor: secondaryColor,
                     opacity: 0.4,
-                    width: 3 + ((i % 2) * 2),
-                    height: 3 + ((i % 2) * 2),
+                    width: 3 + (i % 2) * 2,
+                    height: 3 + (i % 2) * 2,
                     left: `${20 + ((i * 15) % 60)}%`,
                     top: `${15 + ((i * 20) % 70)}%`,
                   }}
                   initial={{ opacity: 0, scale: 0 }}
                   animate={{ opacity: [0, 1, 0], scale: [0, 1, 0] }}
-                  transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 0.5, delay: i * 0.3, ease: "easeInOut" }}
+                  transition={{
+                    duration: 1.5,
+                    repeat: Infinity,
+                    repeatDelay: 0.5,
+                    delay: i * 0.3,
+                    ease: "easeInOut",
+                  }}
                 />
               ))}
             </div>
@@ -96,5 +115,3 @@ export default function GlobalLoader() {
     </AnimatePresence>
   );
 }
-
-

@@ -66,7 +66,7 @@ export default function PrimaryDetailsSection({ onNext, completed }: { onNext?: 
       {/* Parent white card */}
       <div className="rounded-2xl bg-white/80 shadow-sm p-4 sm:p-6 lg:p-8">
         {/* Section header */}
-        <div className="mb-4">
+        <div className="mb-6 sm:mb-8">
           <div className="flex items-center justify-center">
             <h2 className="text-lg font-semibold text-center">Carrier & Trip Details</h2>
           </div>
@@ -105,7 +105,7 @@ export default function PrimaryDetailsSection({ onNext, completed }: { onNext?: 
               </span>
             </legend>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
+            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
               <TextField<TMovementForm>
                 control={control}
                 name="carrier.carrierName"
@@ -137,7 +137,7 @@ export default function PrimaryDetailsSection({ onNext, completed }: { onNext?: 
               </span>
             </legend>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 md:gap-8">
+            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 md:gap-8">
               <div>
                 <DateField<TMovementForm>
                   control={control}
