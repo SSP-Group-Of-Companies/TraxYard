@@ -1,6 +1,7 @@
 // src/lib/validation/movementValidation.ts
 import { EYardId } from "@/types/yard.types";
 import { EMovementType, ETrailerBound, EAxleType, ETireCondition, EDamageLocation, EDamageType, EDamageChecklistItem, ECtpatItem, type TAnglePhotos, type TDamageItem } from "@/types/movement.types";
+import { ETrailerType } from "@/types/Trailer.types"; // ⟵ add this
 import { vAssert, isObj, vString, vBoolean, vNumber, vOneOf, vFileish } from "./validationHelpers";
 
 /** External yard validator can be injected (keeps this module independent of data). */
@@ -21,7 +22,6 @@ export function validateAngles(angles: any) {
 }
 
 /* ───────── Section 3: Axles & Tires ───────── */
-// NOTE: per new schema, photo moved to side tires, not tire spec.
 function validateTireSpec(spec: any, prefix: string) {
   vAssert(isObj(spec), `${prefix} is required`);
   vString(spec.brand, `${prefix}.brand`);
@@ -131,6 +131,42 @@ export function validateCtpat(ctpat: any) {
   }
 }
 
+/* ───────── Trailer reference (either trailerId OR trailer object) ───────── */
+function validateTrailerReference(body: any) {
+  const hasTrailerId = typeof body.trailerId === "string" && body.trailerId.trim().length > 0;
+  const hasTrailerObj = isObj(body.trailer);
+
+  vAssert(hasTrailerId || hasTrailerObj, "Provide either trailerId for an existing trailer OR a trailer object to create.");
+
+  // If both are provided, allow it but ensure they don't conflict in shape (server will prefer trailerId).
+  if (hasTrailerId && hasTrailerObj) {
+    // No extra checks here; route chooses logic. We just avoid blocking.
+    return;
+  }
+
+  if (hasTrailerObj) {
+    const t = body.trailer;
+    vString(t.trailerNumber, "trailer.trailerNumber");
+    vString(t.owner, "trailer.owner");
+    vString(t.make, "trailer.make");
+    vString(t.model, "trailer.model");
+
+    vNumber(t.year, "trailer.year");
+    vAssert(t.year >= 1900 && t.year <= 9999, "trailer.year must be between 1900 and 9999");
+
+    if (t.vin != null) vString(t.vin, "trailer.vin");
+    vString(t.licensePlate, "trailer.licensePlate");
+    vString(t.stateOrProvince, "trailer.stateOrProvince");
+    vOneOf(t.trailerType, "trailer.trailerType", Object.values(ETrailerType) as readonly string[]);
+
+    vAssert(t.safetyInspectionExpiryDate != null, "trailer.safetyInspectionExpiryDate is required");
+    const exp = new Date(t.safetyInspectionExpiryDate);
+    vAssert(!isNaN(exp.valueOf()), "trailer.safetyInspectionExpiryDate must be a valid date");
+
+    if (t.comments != null) vString(t.comments, "trailer.comments");
+  }
+}
+
 /* ───────── Top-level payload ───────── */
 export function validateMovementPayload(body: any) {
   vAssert(isObj(body), "Missing JSON body");
@@ -139,10 +175,10 @@ export function validateMovementPayload(body: any) {
   vOneOf(body.type, "type", Object.values(EMovementType) as readonly string[]);
   vString(body.requestId, "requestId");
 
-  // Trailer reference (string id accepted; server will cast to ObjectId)
-  vString(body.trailerId, "trailerId");
+  // Trailer reference: accept trailerId OR trailer object
+  validateTrailerReference(body);
 
-  // Yard requirement: only for IN/OUT
+  // Yard requirement: only for IN/OUT; optional (but validated) for INSPECTION
   if (body.type === EMovementType.IN || body.type === EMovementType.OUT) {
     vAssert(isValidYardId(body.yardId), "Invalid or missing yardId");
   } else if (body.yardId != null) {
@@ -155,7 +191,7 @@ export function validateMovementPayload(body: any) {
     vAssert(!isNaN(t.valueOf()), "ts must be a valid date if provided");
   }
 
-  // Actor is OPTIONAL (server will populate). If present, validate shape.
+  // Actor is OPTIONAL (server populates). If present, validate shape.
   if (body.actor != null) {
     vAssert(isObj(body.actor), "actor must be an object when provided");
     if (body.actor.id != null) vAssert(typeof body.actor.id === "string", "actor.id must be string");

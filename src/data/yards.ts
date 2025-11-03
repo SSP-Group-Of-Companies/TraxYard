@@ -1,3 +1,4 @@
+// src/data/yards.ts
 import { EYardId, TYard } from "@/types/yard.types";
 
 export const yards: TYard[] = [

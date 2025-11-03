@@ -1,5 +1,5 @@
 // src/lib/utils/s3Helper.ts
-import { AWS_ACCESS_KEY_ID, AWS_BUCKET_NAME, AWS_REGION, AWS_SECRET_ACCESS_KEY } from "@/config/env";
+import { APP_AWS_ACCESS_KEY_ID, APP_AWS_BUCKET_NAME, APP_AWS_REGION, APP_AWS_SECRET_ACCESS_KEY } from "@/config/env";
 import { S3Client, PutObjectCommand, DeleteObjectCommand, CopyObjectCommand, HeadObjectCommand, GetObjectCommand, DeleteObjectsCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from "uuid";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -10,10 +10,10 @@ import { EFileMimeType, type IFileAsset } from "@/types/shared.types";
 /* ───────────────────────── S3 client ───────────────────────── */
 
 const s3 = new S3Client({
-  region: AWS_REGION,
+  region: APP_AWS_REGION,
   credentials: {
-    accessKeyId: AWS_ACCESS_KEY_ID,
-    secretAccessKey: AWS_SECRET_ACCESS_KEY,
+    accessKeyId: APP_AWS_ACCESS_KEY_ID,
+    secretAccessKey: APP_AWS_SECRET_ACCESS_KEY,
   },
 });
 
@@ -34,7 +34,7 @@ export async function uploadBinaryToS3({
 
   await s3.send(
     new PutObjectCommand({
-      Bucket: AWS_BUCKET_NAME,
+      Bucket: APP_AWS_BUCKET_NAME,
       Key: key,
       Body: fileBuffer,
       ContentType: fileType,
@@ -48,7 +48,7 @@ export async function uploadBinaryToS3({
 export async function deleteS3Objects(keys: string[]): Promise<void> {
   if (!Array.isArray(keys) || keys.length === 0) return;
 
-  const Bucket = AWS_BUCKET_NAME;
+  const Bucket = APP_AWS_BUCKET_NAME;
 
   // S3 DeleteObjects limit is 1000 objects per request
   const CHUNK = 1000;
@@ -78,7 +78,7 @@ export async function deleteS3Objects(keys: string[]): Promise<void> {
 
 /** Move via copy+delete (S3 has no native move). */
 export async function moveS3Object({ fromKey, toKey }: { fromKey: string; toKey: string }): Promise<{ url: string; key: string }> {
-  const Bucket = AWS_BUCKET_NAME;
+  const Bucket = APP_AWS_BUCKET_NAME;
 
   await s3.send(
     new CopyObjectCommand({
@@ -95,7 +95,7 @@ export async function moveS3Object({ fromKey, toKey }: { fromKey: string; toKey:
 /** HEAD request to see if an object exists. */
 export async function s3ObjectExists(key: string): Promise<boolean> {
   try {
-    await s3.send(new HeadObjectCommand({ Bucket: AWS_BUCKET_NAME, Key: key }));
+    await s3.send(new HeadObjectCommand({ Bucket: APP_AWS_BUCKET_NAME, Key: key }));
     return true;
   } catch (err: any) {
     if (err?.name === "NotFound") return false;
@@ -107,7 +107,7 @@ export async function s3ObjectExists(key: string): Promise<boolean> {
 /** Server-side: create a presigned PUT URL for the exact key + Content-Type. */
 export async function getPresignedPutUrl({ key, fileType, expiresIn = DEFAULT_PRESIGN_EXPIRY_SECONDS }: { key: string; fileType: string; expiresIn?: number }): Promise<{ url: string }> {
   const command = new PutObjectCommand({
-    Bucket: AWS_BUCKET_NAME,
+    Bucket: APP_AWS_BUCKET_NAME,
     Key: key,
     ContentType: fileType,
   });
@@ -128,7 +128,7 @@ export const keyJoin = (...parts: Array<string | null | undefined>) =>
     .join("/");
 
 /** Public URL for a given S3 key (no ACL change implied). */
-export const publicUrlForKey = (key: string) => `https://${AWS_BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/${trimSlashes(key)}`;
+export const publicUrlForKey = (key: string) => `https://${APP_AWS_BUCKET_NAME}.s3.${APP_AWS_REGION}.amazonaws.com/${trimSlashes(key)}`;
 
 /** Is this a temp object? (Namespace-agnostic) */
 export const isTempKey = (key?: string) => Boolean(key && trimSlashes(key).startsWith(trimSlashes(`${S3_TEMP_FOLDER}/`)));
@@ -309,7 +309,7 @@ async function fetchBytesFromUrl(url: string): Promise<Uint8Array> {
 }
 
 async function getS3ObjectBytes(key: string): Promise<Uint8Array> {
-  const out = await s3.send(new GetObjectCommand({ Bucket: AWS_BUCKET_NAME, Key: key }));
+  const out = await s3.send(new GetObjectCommand({ Bucket: APP_AWS_BUCKET_NAME, Key: key }));
   const body: any = out.Body;
 
   if (body?.transformToByteArray) return await body.transformToByteArray();
@@ -366,4 +366,107 @@ export async function deleteTempFile(file?: IFileAsset): Promise<boolean> {
   if (!file?.s3Key || !isTempKey(file.s3Key)) return false;
   await deleteTempFiles([file.s3Key]);
   return true;
+}
+
+function sanitizeDownloadName(name: string): string {
+  // remove quotes and path/invalid chars
+  return name.replace(/["<>:\\|?*\n\r\t]+/g, "").trim();
+}
+
+function getExtFromKey(key: string): string | undefined {
+  const base = key.split("/").pop() || "";
+  const dot = base.lastIndexOf(".");
+  if (dot > 0 && dot < base.length - 1) return base.slice(dot + 1);
+  return undefined;
+}
+
+function ensureExtension(filename: string, key: string): string {
+  // if caller didn't pass an extension, append from the key (if available)
+  if (/\.[A-Za-z0-9]+$/.test(filename)) return filename;
+  const ext = getExtFromKey(key);
+  return ext ? `${filename}.${ext}` : filename; // fall back to no ext if we truly can't infer
+}
+
+/**
+ * Generate a presigned GET URL that downloads with a stable filename (with extension)
+ * and the object's original Content-Type when available.
+ */
+export async function getPresignedGetUrl({
+  key,
+  filename,
+  expiresIn = DEFAULT_PRESIGN_EXPIRY_SECONDS,
+}: {
+  key: string;
+  filename?: string; // we’ll append extension if missing
+  expiresIn?: number;
+}): Promise<{ url: string }> {
+  // 1) Look up stored metadata to preserve real content-type
+  let storedContentType: string | undefined;
+  try {
+    const head = await s3.send(new HeadObjectCommand({ Bucket: APP_AWS_BUCKET_NAME, Key: key }));
+    storedContentType = head.ContentType || undefined;
+  } catch {
+    // If Head fails, we’ll still issue a URL, but use a safe default content-type below
+  }
+
+  // 2) Build a safe, extension-inclusive filename
+  const baseName = sanitizeDownloadName(filename || key.split("/").pop() || "download");
+  const finalName = ensureExtension(baseName, key);
+  const encoded = encodeURIComponent(finalName);
+
+  // 3) Build Content-Disposition
+  const contentDisposition = `attachment; filename="${finalName}"; filename*=UTF-8''${encoded}`;
+
+  // 4) Prefer stored content-type; otherwise, fall back to octet-stream
+  const responseContentType = storedContentType || "application/octet-stream";
+
+  const command = new GetObjectCommand({
+    Bucket: APP_AWS_BUCKET_NAME,
+    Key: key,
+    ResponseContentDisposition: contentDisposition,
+    ResponseContentType: responseContentType,
+  });
+
+  const url = await getSignedUrl(s3, command, { expiresIn });
+  return { url };
+}
+
+/**
+ * Frontend helper to fetch a presigned GET URL that ALWAYS downloads.
+ *
+ * Example:
+ *   const url = await getDownloadUrlFromS3Key({
+ *     s3Key: "submissions/licenses/123/abc.jpeg",
+ *     filename: "driver-license" // extension will be inferred from s3Key if missing
+ *   });
+ *   // `url` is a time-limited (presigned) HTTPS link. You can trigger download with:
+ *   // const a = document.createElement("a"); a.href = url; a.click();
+ *
+ * Returns:
+ *   A string — the presigned GET URL (e.g., "https://bucket.s3...&X-Amz-Signature=...").
+ *   The server sets Content-Disposition to "attachment" with a safe filename (and extension),
+ *   and preserves the original Content-Type when available.
+ */
+export async function getDownloadUrlFromS3Key({
+  s3Key,
+  filename,
+  expiresIn,
+}: {
+  s3Key: string;
+  filename?: string; // optional; if no extension, server appends from the key
+  expiresIn?: number;
+}): Promise<string> {
+  const res = await fetch("/api/v1/presign-get", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key: s3Key, filename, expiresIn }),
+  });
+
+  if (!res.ok) {
+    const { message } = await res.json().catch(() => ({ message: "" }));
+    throw new Error(message || "Failed to get presigned download URL.");
+  }
+
+  const { data } = await res.json();
+  return data.url as string;
 }
