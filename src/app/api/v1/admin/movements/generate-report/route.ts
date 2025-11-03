@@ -113,8 +113,6 @@ export async function POST(req: NextRequest) {
       new SendMessageCommand({
         QueueUrl: REPORTS_SQS_URL,
         MessageBody: JSON.stringify(payload),
-        MessageGroupId: "movements-reports", // ok for FIFO; harmless for standard
-        MessageDeduplicationId: jobId, // ok for FIFO; ignored for standard
       })
     );
 

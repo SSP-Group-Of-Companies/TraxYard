@@ -14,6 +14,14 @@ import { fromZonedTime } from "date-fns-tz";
 import { APP_TZ } from "@/lib/utils/dateUtils";
 import connectDB from "@/lib/utils/connectDB";
 
+// verify env
+if (!APP_AWS_BUCKET_NAME) {
+  throw new Error("APP_AWS_BUCKET_NAME is not set in Lambda environment");
+}
+if (!APP_AWS_REGION) {
+  throw new Error("APP_AWS_REGION is not set in Lambda environment");
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // S3
 // ─────────────────────────────────────────────────────────────────────────────
