@@ -23,7 +23,6 @@ import {
 import { EYardId } from "@/types/yard.types";
 import { enumMsg, trim } from "@/lib/utils/stringUtils";
 import fileAssetSchema from "../schemas/fileAssetSchema";
-import { TIRE_BRAND_VALUES } from "@/data/tireBrandNames";
 
 /** Keep doc type local to the model file */
 export type TMovementDoc = HydratedDocument<TMovement>;
@@ -35,14 +34,7 @@ const AngleItemSchema = new Schema<TAngleItem>({ photo: { type: fileAssetSchema,
 // NOTE: photo moved off TTireSpec onto TSideTires
 const TireSpecSchema = new Schema<TTireSpec>(
   {
-    brand: {
-      type: String,
-      required: [true, "Tire brand is required."],
-      enum: {
-        values: TIRE_BRAND_VALUES,
-        message: enumMsg("Tire brand", TIRE_BRAND_VALUES),
-      },
-    },
+    brand: { type: String, required: [true, "Tire brand is required."], trim: true },
     psi: { type: Number, required: [true, "Tire PSI is required."], min: [0, "PSI cannot be negative."], max: [200, "PSI seems unrealistic."] },
     condition: {
       type: String,

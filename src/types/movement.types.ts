@@ -3,7 +3,6 @@
 import { ObjectId } from "mongoose";
 import { IFileAsset } from "./shared.types";
 import { EYardId } from "./yard.types";
-import { TIRE_BRAND_NAMES } from "@/data/tireBrandNames";
 
 /* ───────────────────────── Core ───────────────────────── */
 
@@ -81,11 +80,8 @@ export enum ETireCondition {
   RE = "RE", // Replaced
 }
 
-/** Union type of allowed tire brand names */
-export type TTireBrandName = (typeof TIRE_BRAND_NAMES)[number];
-
 export type TTireSpec = {
-  brand: TTireBrandName;
+  brand: string;
   psi: number;
   condition: ETireCondition;
 };

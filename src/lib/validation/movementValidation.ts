@@ -3,25 +3,10 @@ import { EYardId } from "@/types/yard.types";
 import { EMovementType, ETrailerBound, EAxleType, ETireCondition, EDamageLocation, EDamageType, EDamageChecklistItem, ECtpatItem, type TAnglePhotos, type TDamageItem } from "@/types/movement.types";
 import { ETrailerType } from "@/types/Trailer.types"; // ⟵ add this
 import { vAssert, isObj, vString, vBoolean, vNumber, vOneOf, vFileish } from "./validationHelpers";
-import { TIRE_BRAND_NAMES } from "@/data/tireBrandNames";
 
 /** External yard validator can be injected (keeps this module independent of data). */
 export function isValidYardId(id: any): id is EYardId {
   return Object.values(EYardId).includes(id as EYardId);
-}
-
-// ───────── Tire brand normalization helpers ─────────
-const normalizeBrandKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, ""); // strip spaces, dashes, underscores, dots, etc.
-
-const BRAND_LOOKUP: Record<string, string> = Object.fromEntries(TIRE_BRAND_NAMES.map((name) => [normalizeBrandKey(name), name]));
-
-/** Coerce user-provided brand to canonical casing; throw if not comparable. */
-function coerceTireBrand(input: any, label: string): string {
-  vString(input, label); // ensures it's a non-empty string
-  const key = normalizeBrandKey(input);
-  const canonical = BRAND_LOOKUP[key];
-  vAssert(Boolean(canonical), `${label} must be a known brand. Allowed: ${TIRE_BRAND_NAMES.join(", ")}`);
-  return canonical!;
 }
 
 /* ───────── Section 2: Angles ───────── */
@@ -39,10 +24,7 @@ export function validateAngles(angles: any) {
 /* ───────── Section 3: Axles & Tires ───────── */
 function validateTireSpec(spec: any, prefix: string) {
   vAssert(isObj(spec), `${prefix} is required`);
-
-  // ⟵ UPDATED: validate + normalize brand
-  spec.brand = coerceTireBrand(spec.brand, `${prefix}.brand`);
-
+  vString(spec.brand, `${prefix}.brand`);
   vNumber(spec.psi, `${prefix}.psi`);
   vAssert(spec.psi >= 0 && spec.psi <= 200, `${prefix}.psi must be between 0 and 200`);
   vOneOf(spec.condition, `${prefix}.condition`, Object.values(ETireCondition) as readonly string[]);
