@@ -47,7 +47,7 @@ export default function DateField<T extends FieldValues>({
               id={id}
               type="date"
               className={[
-                "w-full rounded-md shadow-sm px-3 py-2 text-sm outline-none",
+                "block w-full max-w-full box-border rounded-md shadow-sm px-3 py-2 text-sm outline-none",
                 "focus:ring-[var(--color-green)] focus:outline-none focus:shadow-md",
                 "border border-gray-200", // visible edge on iOS Safari
                 disabled ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-white",

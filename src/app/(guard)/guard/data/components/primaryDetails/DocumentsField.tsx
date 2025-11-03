@@ -131,7 +131,7 @@ export default function DocumentsField({
         )}
 
         {/* Table shell */}
-          <div className="rounded-lg shadow-sm bg-white overflow-visible">
+        <div className="rounded-lg shadow-sm bg-white overflow-visible">
           {/* Header row (hidden on small screens) */}
             <div className="hidden sm:grid grid-cols-[1fr_7rem_auto] items-center bg-gray-50 text-sm font-medium text-gray-700 min-w-0">
             <div className="px-3 py-2 sm:px-4 sm:py-3 min-w-0">Description</div>
@@ -184,14 +184,14 @@ export default function DocumentsField({
                   <div className="px-3 py-2 sm:px-4 sm:py-3 whitespace-nowrap">
                     <div className="relative inline-block align-top w-full sm:w-auto">
                       {/* Clickable tile for upload/replace with fixed size to keep row height consistent */}
-                      <UploadPicker
-                        label={item.photo ? "Replace file" : "Upload file"}
-                        onPick={(file) => onPick(i, file)}
+                    <UploadPicker
+                      label={item.photo ? "Replace file" : "Upload file"}
+                      onPick={(file) => onPick(i, file)}
                         accept="image/jpeg,image/png,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                         disabled={busyIndex === i}
-                        showDefaultTile={false}
-                      >
-                        <div
+                      showDefaultTile={false}
+                    >
+                      <div
                           className={`w-full h-40 sm:w-28 sm:h-20 rounded-lg border-2 border-dashed grid place-items-center overflow-hidden cursor-pointer relative
                             ${busyIndex === i ? "opacity-70 cursor-wait" : "bg-gray-50 hover:bg-gray-100 hover:border-gray-400 text-gray-700"}
                             ${(rowErrors?.photo || uploadError[i]) ? "!border-red-400" : ""}`}
@@ -230,10 +230,10 @@ export default function DocumentsField({
                               <div className="animate-spin rounded-full h-5 w-5 border-2 border-b-transparent border-gray-600" />
                             </div>
                           )}
-                        </div>
-                      </UploadPicker>
+                      </div>
+                    </UploadPicker>
 
-                      {item.photo && (
+                    {item.photo && (
                         <button
                           type="button"
                           aria-label="Remove file"
@@ -253,7 +253,7 @@ export default function DocumentsField({
                     {/* Photo validation message (reserve space to avoid layout shift) */}
                     <p className="mt-1 text-[11px] text-red-600 min-h-[14px] w-full sm:w-28 text-center break-words">
                       {rowErrors?.photo ? String(rowErrors?.photo?.message || rowErrors?.photo?.s3Key?.message || "Upload a file") : ""}
-                    </p>
+                      </p>
                   </div>
 
                   {/* Actions cell */}
