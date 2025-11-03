@@ -7,7 +7,7 @@ import { getPresignedPutUrl } from "@/lib/utils/s3Helper";
 import { DEFAULT_FILE_SIZE_LIMIT_MB, DEFAULT_PRESIGN_EXPIRY_SECONDS, S3_TEMP_FOLDER } from "@/constants/aws";
 import { successResponse, errorResponse } from "@/lib/utils/apiResponse";
 import { parseJsonBody } from "@/lib/utils/reqParser";
-import { _AWS_BUCKET_NAME, _AWS_REGION } from "@/config/env";
+import { APP_AWS_BUCKET_NAME, APP_AWS_REGION } from "@/config/env";
 
 /* ───────────────── Allowed types ───────────────── */
 
@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
     const fullKey = `${folderPrefix}/${finalFilename}`;
 
     const { url } = await getPresignedPutUrl({ key: fullKey, fileType: normalizedMime });
-    const publicUrl = `https://${_AWS_BUCKET_NAME}.s3.${_AWS_REGION}.amazonaws.com/${fullKey}`;
+    const publicUrl = `https://${APP_AWS_BUCKET_NAME}.s3.${APP_AWS_REGION}.amazonaws.com/${fullKey}`;
 
     const result: IPresignResponse = {
       key: fullKey,

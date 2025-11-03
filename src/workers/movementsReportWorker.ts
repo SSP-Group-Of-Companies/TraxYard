@@ -1,24 +1,24 @@
 // src/workers/movementsReportWorker.ts
-import mongoose from "mongoose";
 import ExcelJS from "exceljs";
 import { PassThrough } from "stream";
 import { Upload } from "@aws-sdk/lib-storage";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { SQSEvent, SQSRecord } from "aws-lambda";
 import { Movement } from "@/mongoose/models/Movement";
-import { _AWS_BUCKET_NAME, _AWS_REGION, MONGO_URI } from "@/config/env";
+import { APP_AWS_BUCKET_NAME, APP_AWS_REGION } from "@/config/env";
 import { ES3Folder, ES3Namespace } from "@/types/aws.types";
 import { S3_TEMP_FOLDER } from "@/constants/aws";
 import { formatInTimeZone } from "date-fns-tz";
 import { addDays, startOfDay } from "date-fns";
 import { fromZonedTime } from "date-fns-tz";
 import { APP_TZ } from "@/lib/utils/dateUtils";
+import connectDB from "@/lib/utils/connectDB";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // S3
 // ─────────────────────────────────────────────────────────────────────────────
 const s3 = new S3Client({
-  region: _AWS_REGION,
+  region: APP_AWS_REGION,
 });
 
 async function putStatus(jobId: string, status: any) {
@@ -26,7 +26,7 @@ async function putStatus(jobId: string, status: any) {
   status.updatedAt = new Date().toISOString();
   await s3.send(
     new PutObjectCommand({
-      Bucket: _AWS_BUCKET_NAME,
+      Bucket: APP_AWS_BUCKET_NAME,
       Key: statusKey,
       Body: Buffer.from(JSON.stringify(status)),
       ContentType: "application/json",
@@ -35,7 +35,7 @@ async function putStatus(jobId: string, status: any) {
 }
 
 function publicUrlForKey(key: string) {
-  return `https://${_AWS_BUCKET_NAME}.s3.${_AWS_REGION}.amazonaws.com/${key}`;
+  return `https://${APP_AWS_BUCKET_NAME}.s3.${APP_AWS_REGION}.amazonaws.com/${key}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -183,9 +183,7 @@ async function processRecord(record: SQSRecord) {
   };
 
   // Connect DB
-  if (mongoose.connection.readyState === 0) {
-    await mongoose.connect(MONGO_URI, {});
-  }
+  await connectDB();
 
   // Count total first (for progress)
   const countStages = buildBasePipeline(payload).concat([{ $count: "count" }]);
@@ -219,7 +217,7 @@ async function processRecord(record: SQSRecord) {
     const pass = new PassThrough();
     const uploader = new Upload({
       client: s3,
-      params: { Bucket: _AWS_BUCKET_NAME, Key: outKey, Body: pass, ContentType: contentType },
+      params: { Bucket: APP_AWS_BUCKET_NAME, Key: outKey, Body: pass, ContentType: contentType },
       queueSize: 4,
       partSize: 5 * 1024 * 1024,
     });
@@ -252,7 +250,7 @@ async function processRecord(record: SQSRecord) {
     const pass = new PassThrough();
     const uploader = new Upload({
       client: s3,
-      params: { Bucket: _AWS_BUCKET_NAME, Key: outKey, Body: pass, ContentType: contentType },
+      params: { Bucket: APP_AWS_BUCKET_NAME, Key: outKey, Body: pass, ContentType: contentType },
       queueSize: 4,
       partSize: 5 * 1024 * 1024,
     });

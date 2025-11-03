@@ -20,10 +20,10 @@ frontend:
             echo "AZURE_AD_CLIENT_ID=$AZURE_AD_CLIENT_ID"
             echo "AZURE_AD_CLIENT_SECRET=$AZURE_AD_CLIENT_SECRET"
             echo "AZURE_AD_TENANT_ID=$AZURE_AD_TENANT_ID"
-            echo "_AWS_BUCKET_NAME=$_AWS_BUCKET_NAME"
-            echo "_AWS_REGION=$_AWS_REGION"
-            echo "_AWS_ACCESS_KEY_ID=$_AWS_ACCESS_KEY_ID"
-            echo "_AWS_SECRET_ACCESS_KEY=$_AWS_SECRET_ACCESS_KEY"
+            echo "APP_AWS_BUCKET_NAME=$APP_AWS_BUCKET_NAME"
+            echo "APP_AWS_REGION=$APP_AWS_REGION"
+            echo "APP_AWS_ACCESS_KEY_ID=$APP_AWS_ACCESS_KEY_ID"
+            echo "APP_AWS_SECRET_ACCESS_KEY=$APP_AWS_SECRET_ACCESS_KEY"
             echo "SAFETY_EMAIL=$SAFETY_EMAIL"
             echo "NO_REPLY_EMAIL=$NO_REPLY_EMAIL"
             echo "NEXT_PUBLIC_TURNSTILE_SITE_KEY=$NEXT_PUBLIC_TURNSTILE_SITE_KEY"
@@ -32,6 +32,7 @@ frontend:
             echo "NEXT_IMAGE_DOMAINS=$NEXT_IMAGE_DOMAINS"
             echo "NEXT_PUBLIC_PORTAL_BASE_URL=$NEXT_PUBLIC_PORTAL_BASE_URL"
             echo "NODE_ENV=production"
+            echo "REPORTS_SQS_URL=$REPORTS_SQS_URL"
           } >> .env.production
           # Also write a copy as .env for any tooling that reads it
           cp .env.production .env

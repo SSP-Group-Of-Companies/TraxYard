@@ -30,10 +30,10 @@ export const AZURE_AD_CLIENT_SECRET = process.env.AZURE_AD_CLIENT_SECRET!;
 export const AZURE_AD_TENANT_ID = process.env.AZURE_AD_TENANT_ID!;
 
 // ░ Storage (AWS S3)
-export const _AWS_BUCKET_NAME = process.env._AWS_BUCKET_NAME!;
-export const _AWS_REGION = process.env._AWS_REGION!;
-export const _AWS_ACCESS_KEY_ID = process.env._AWS_ACCESS_KEY_ID!;
-export const _AWS_SECRET_ACCESS_KEY = process.env._AWS_SECRET_ACCESS_KEY!;
+export const APP_AWS_BUCKET_NAME = process.env.APP_AWS_BUCKET_NAME!;
+export const APP_AWS_REGION = process.env.APP_AWS_REGION!;
+export const APP_AWS_ACCESS_KEY_ID = process.env.APP_AWS_ACCESS_KEY_ID!;
+export const APP_AWS_SECRET_ACCESS_KEY = process.env.APP_AWS_SECRET_ACCESS_KEY!;
 
 // ░ Email
 export const SAFETY_EMAIL = process.env.SAFETY_EMAIL!;

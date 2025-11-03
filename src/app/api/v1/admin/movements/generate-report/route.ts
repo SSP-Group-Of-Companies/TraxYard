@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { guard } from "@/lib/auth/authUtils";
 import { successResponse, errorResponse, AppError } from "@/lib/utils/apiResponse";
-import { REPORTS_SQS_URL, _AWS_ACCESS_KEY_ID, _AWS_REGION, _AWS_SECRET_ACCESS_KEY } from "@/config/env";
+import { REPORTS_SQS_URL, APP_AWS_ACCESS_KEY_ID, APP_AWS_REGION, APP_AWS_SECRET_ACCESS_KEY } from "@/config/env";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { SQSClient, SendMessageCommand } from "@aws-sdk/client-sqs";
 import { APP_TZ } from "@/lib/utils/dateUtils";
@@ -12,12 +12,12 @@ import { keyJoin } from "@/lib/utils/s3Helper";
 import { S3_TEMP_FOLDER } from "@/constants/aws";
 
 const s3 = new S3Client({
-  region: _AWS_REGION,
-  credentials: { accessKeyId: _AWS_ACCESS_KEY_ID, secretAccessKey: _AWS_SECRET_ACCESS_KEY },
+  region: APP_AWS_REGION,
+  credentials: { accessKeyId: APP_AWS_ACCESS_KEY_ID, secretAccessKey: APP_AWS_SECRET_ACCESS_KEY },
 });
 const sqs = new SQSClient({
-  region: _AWS_REGION,
-  credentials: { accessKeyId: _AWS_ACCESS_KEY_ID, secretAccessKey: _AWS_SECRET_ACCESS_KEY },
+  region: APP_AWS_REGION,
+  credentials: { accessKeyId: APP_AWS_ACCESS_KEY_ID, secretAccessKey: APP_AWS_SECRET_ACCESS_KEY },
 });
 
 // Normalize column tokens -> canonical ids we support
@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
 
     await s3.send(
       new PutObjectCommand({
-        Bucket: process.env._AWS_BUCKET_NAME!,
+        Bucket: process.env.APP_AWS_BUCKET_NAME!,
         Key: statusKey,
         Body: Buffer.from(JSON.stringify(initialStatus)),
         ContentType: "application/json",
