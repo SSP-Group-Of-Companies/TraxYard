@@ -43,26 +43,32 @@ export default function DateField<T extends FieldValues>({
         name={name}
         render={({ field, fieldState }) => (
           <>
-            <input
-              id={id}
-              type="date"
+            <div
               className={[
-                // Prevent iOS from oversizing: force block + border-box
-                "block w-full max-w-full box-border rounded-md shadow-sm px-3 py-2 text-sm outline-none",
-                "focus:ring-[var(--color-green)] focus:outline-none focus:shadow-md",
-                "border border-gray-200", // visible edge on iOS Safari
-                disabled ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-white",
-                fieldState.error ? "ring-2 ring-red-300 border-red-300" : "",
+                "relative w-full rounded-md shadow-sm",
+                fieldState.error ? "ring-2 ring-red-300 border border-red-300" : "border border-gray-200",
+                disabled ? "bg-gray-100" : "bg-white",
               ].join(" ")}
-              value={(field.value ?? "") as string}
-              onChange={(e) => field.onChange(e.target.value)}
-              onBlur={field.onBlur}
-              disabled={disabled}
-              data-field={String(name)}
-              aria-required={required || undefined}
-              aria-invalid={!!fieldState.error || undefined}
-              aria-describedby={fieldState.error ? errId : undefined}
-            />
+            >
+              <input
+                id={id}
+                type="date"
+                className={[
+                  // Ensure no overflow within wrapper
+                  "block w-full max-w-full box-border appearance-none outline-none bg-transparent",
+                  "px-3 py-2 text-sm",
+                  disabled ? "text-gray-400 cursor-not-allowed" : "text-gray-900",
+                ].join(" ")}
+                value={(field.value ?? "") as string}
+                onChange={(e) => field.onChange(e.target.value)}
+                onBlur={field.onBlur}
+                disabled={disabled}
+                data-field={String(name)}
+                aria-required={required || undefined}
+                aria-invalid={!!fieldState.error || undefined}
+                aria-describedby={fieldState.error ? errId : undefined}
+              />
+            </div>
             {fieldState.error?.message && (
               <p id={errId} className="text-red-500 text-sm mt-1">
                 {String(fieldState.error.message)}
