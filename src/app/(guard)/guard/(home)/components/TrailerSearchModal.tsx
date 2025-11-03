@@ -159,6 +159,7 @@ export default function TrailerSearchModal({
   const dialogRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const lastFocused = useRef<HTMLElement | null>(null);
+  const isInputFocusedRef = useRef<boolean>(false);
 
   // Local state for search input
   const [typed, setTyped] = useState("");
@@ -183,7 +184,27 @@ export default function TrailerSearchModal({
     document.body.style.overflow = "hidden";
 
     // Focus the search input after modal opens
-    setTimeout(() => inputRef.current?.focus(), 0);
+    setTimeout(() => {
+      inputRef.current?.focus();
+      isInputFocusedRef.current = document.activeElement === inputRef.current;
+    }, 0);
+
+    // Track focus state to preserve keyboard during refreshes
+    // Capture ref in closure for cleanup
+    const inputEl = inputRef.current;
+    const dialogEl = dialogRef.current;
+    
+    const handleFocus = () => {
+      isInputFocusedRef.current = true;
+    };
+    const handleBlur = () => {
+      // Only mark as unfocused if focus actually moved outside the modal
+      if (!dialogEl?.contains(document.activeElement)) {
+        isInputFocusedRef.current = false;
+      }
+    };
+    inputEl?.addEventListener("focus", handleFocus);
+    inputEl?.addEventListener("blur", handleBlur);
 
     // Keyboard event handler for escape and focus trap
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -224,11 +245,27 @@ export default function TrailerSearchModal({
     // Cleanup function
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
+      inputEl?.removeEventListener("focus", handleFocus);
+      inputEl?.removeEventListener("blur", handleBlur);
       document.body.style.overflow = prevOverflow;
       lastFocused.current?.focus();
       lastFocused.current = null;
+      isInputFocusedRef.current = false;
     };
   }, [open, onClose]);
+
+  // Restore focus after any state update if input was previously focused
+  // This handles cases where parent re-renders (e.g., from 60s refresh) cause focus loss
+  useEffect(() => {
+    if (open && isInputFocusedRef.current && inputRef.current) {
+      // Use a microtask to restore focus after React has finished rendering
+      Promise.resolve().then(() => {
+        if (isInputFocusedRef.current && inputRef.current && document.activeElement !== inputRef.current) {
+          inputRef.current.focus();
+        }
+      });
+    }
+  }, [open, rows, loading, meta]); // Re-run when data changes (indicating possible refresh)
 
   // Note: Reset logic removed - now handled by key-based remounting in parent
 
@@ -244,14 +281,18 @@ export default function TrailerSearchModal({
    * label should be displayed below the search input. Handles new trailers,
    * existing trailers, and warning states for expired inspections or damage.
    * 
+   * Uses case-insensitive matching to align with API search behavior.
+   * 
    * @returns {StatusLabel | null} Status label object or null
    */
   const statusLabel = useMemo((): StatusLabel | null => {
     const query = typed.trim();
     if (!query) return null;
 
-    // Find exact match for the typed trailer number
-    const match = rows.find(row => row.trailerNumber === query);
+    // Find case-insensitive match for the typed trailer number
+    // (API search is case-insensitive, so UI should match)
+    const normalizedQuery = query.toLowerCase();
+    const match = rows.find(row => row.trailerNumber.toLowerCase() === normalizedQuery);
     if (!match) {
       return { kind: "new", text: "New trailer (not found in DB)" };
     }

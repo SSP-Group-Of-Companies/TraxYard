@@ -38,6 +38,7 @@ export default function InYardModal({ open, onClose }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const lastFocusedElement = useRef<HTMLElement | null>(null);
+  const isInputFocusedRef = useRef<boolean>(false);
 
   const { rows, meta, loading, error, page, setPage, setQuery } = useInYardTrailers(
     yardId,
@@ -55,7 +56,27 @@ export default function InYardModal({ open, onClose }: Props) {
     if (!open) return;
     lastFocusedElement.current = document.activeElement as HTMLElement;
 
-    setTimeout(() => inputRef.current?.focus(), 0);
+    setTimeout(() => {
+      inputRef.current?.focus();
+      isInputFocusedRef.current = document.activeElement === inputRef.current;
+    }, 0);
+
+    // Track focus state to preserve keyboard during refreshes
+    // Capture ref in closure for cleanup
+    const inputEl = inputRef.current;
+    const dialogEl = dialogRef.current;
+    
+    const handleFocus = () => {
+      isInputFocusedRef.current = true;
+    };
+    const handleBlur = () => {
+      // Only mark as unfocused if focus actually moved outside the modal
+      if (!dialogEl?.contains(document.activeElement)) {
+        isInputFocusedRef.current = false;
+      }
+    };
+    inputEl?.addEventListener("focus", handleFocus);
+    inputEl?.addEventListener("blur", handleBlur);
 
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -98,13 +119,29 @@ export default function InYardModal({ open, onClose }: Props) {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keydown", handleTrap);
+      inputEl?.removeEventListener("focus", handleFocus);
+      inputEl?.removeEventListener("blur", handleBlur);
       document.body.style.overflow = prevOverflow;
       if (lastFocusedElement.current) {
         lastFocusedElement.current.focus();
         lastFocusedElement.current = null;
       }
+      isInputFocusedRef.current = false;
     };
   }, [open, onClose, setPage]);
+
+  // Restore focus after any state update if input was previously focused
+  // This handles cases where parent re-renders (e.g., from 60s refresh) cause focus loss
+  useEffect(() => {
+    if (open && isInputFocusedRef.current && inputRef.current) {
+      // Use a microtask to restore focus after React has finished rendering
+      Promise.resolve().then(() => {
+        if (isInputFocusedRef.current && inputRef.current && document.activeElement !== inputRef.current) {
+          inputRef.current.focus();
+        }
+      });
+    }
+  }, [open, rows, loading, meta]); // Re-run when data changes (indicating possible refresh)
 
   const yardName = yards.find((y) => y.id === yardId)?.name ?? yardId;
 
