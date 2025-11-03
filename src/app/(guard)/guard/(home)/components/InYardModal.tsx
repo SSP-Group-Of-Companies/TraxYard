@@ -39,7 +39,7 @@ export default function InYardModal({ open, onClose }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const lastFocusedElement = useRef<HTMLElement | null>(null);
 
-  const { rows, meta, loading, error, setPage, setQuery } = useInYardTrailers(
+  const { rows, meta, loading, error, page, setPage, setQuery } = useInYardTrailers(
     yardId,
     {
       pageSize: 20,
@@ -167,11 +167,10 @@ export default function InYardModal({ open, onClose }: Props) {
               <div className="flex flex-col gap-2 sm:gap-3 mb-3 sm:mb-4">
                 <div className="shrink-0 flex justify-end">
                   <Pager
-                    page={meta?.page ?? 1}
+                    page={page}
                     totalPages={meta?.totalPages ?? 1}
                     onPage={(p) => setPage(p)}
                     disabled={loading}
-                    compact
                     showCount
                     total={meta?.total ?? rows.length}
                     pageSize={meta?.pageSize ?? 20}

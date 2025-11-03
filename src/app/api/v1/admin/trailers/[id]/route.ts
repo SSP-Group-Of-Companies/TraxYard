@@ -1,6 +1,9 @@
 // src/app/api/v1/admin/trailers/[id]/route.ts
 
 import { NextRequest } from "next/server";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 import connectDB from "@/lib/utils/connectDB";
 import { successResponse, errorResponse, AppError } from "@/lib/utils/apiResponse";
 import { guard } from "@/lib/auth/authUtils";

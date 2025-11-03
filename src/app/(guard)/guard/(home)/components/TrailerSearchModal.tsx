@@ -340,13 +340,12 @@ export default function TrailerSearchModal({
                 {/* Pagination Controls (first) */}
                 <div className="shrink-0 flex justify-end">
                   <Pager
-                    page={meta?.page ?? page}
+                    page={page}
                     totalPages={meta?.totalPages ?? 1}
                     total={meta?.total ?? rows.length}
                     pageSize={meta?.pageSize ?? 20}
                     onPage={setPage}
                     disabled={loading}
-                    compact
                     showCount
                     countVariant="muted"
                   />
