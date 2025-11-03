@@ -13,6 +13,7 @@ import type { TMovementForm } from "@/types/frontend/form/movement.form";
 import PrimaryDetailsSection from "./sections/PrimaryDetailsSection";
 import AnglesSection from "./sections/AnglesSection";
 import TiresSection from "./sections/TiresSection";
+import DamageChecklistSection from "./sections/DamageChecklistSection";
 import { PrimaryDetailsFormSchema } from "@/types/schemas/primaryDetails.schema";
 import { zodRHFResolver } from "@/lib/validation/zodRHFResolver";
 import AnimatedPage from "@/app/components/ui/AnimatedPage";
@@ -23,7 +24,7 @@ export default function GuardDataPage() {
   const sp = useSearchParams();
   const initialMode = sp.get("mode") || "IN";
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [unlocked, setUnlocked] = useState<{ primary: boolean; angles: boolean; tires: boolean }>({ primary: true, angles: false, tires: false });
+  const [unlocked, setUnlocked] = useState<{ primary: boolean; angles: boolean; tires: boolean; damages: boolean }>({ primary: true, angles: false, tires: false, damages: false });
 
   const methods = useForm<TMovementForm>({
     mode: "onSubmit",
@@ -50,6 +51,36 @@ export default function GuardDataPage() {
         TRAILER_NUMBER_VIN: { photo: null },
         LANDING_GEAR_UNDERCARRIAGE: { photo: null },
       },
+      axles: [
+        {
+          axleNumber: 1,
+          type:  "DUAL" as any,
+          left: {
+            photo: null,
+            outer: { brand: "", psi: undefined as any, condition: undefined as any },
+            inner: { brand: "", psi: undefined as any, condition: undefined as any },
+          },
+          right: {
+            photo: null,
+            outer: { brand: "", psi: undefined as any, condition: undefined as any },
+            inner: { brand: "", psi: undefined as any, condition: undefined as any },
+          },
+        },
+        {
+          axleNumber: 2,
+          type:  "DUAL" as any,
+          left: {
+            photo: null,
+            outer: { brand: "", psi: undefined as any, condition: undefined as any },
+            inner: { brand: "", psi: undefined as any, condition: undefined as any },
+          },
+          right: {
+            photo: null,
+            outer: { brand: "", psi: undefined as any, condition: undefined as any },
+            inner: { brand: "", psi: undefined as any, condition: undefined as any },
+          },
+        },
+      ],
     },
   });
 
@@ -123,7 +154,7 @@ export default function GuardDataPage() {
                 });
                 return;
               }
-              setUnlocked((u: { primary: boolean; angles: boolean; tires: boolean }) => ({ ...u, angles: true }));
+              setUnlocked((u) => ({ ...u, angles: true }));
               setTimeout(() => {
                 document.getElementById("angles-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
               }, 0);
@@ -136,16 +167,24 @@ export default function GuardDataPage() {
       <AnglesSection
         completed={unlocked.tires}
         onNext={() => {
-          setUnlocked((u: { primary: boolean; angles: boolean; tires: boolean }) => ({ ...u, tires: true }));
+          setUnlocked((u) => ({ ...u, tires: true }));
           setTimeout(() => {
             document.getElementById("tires-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
           }, 0);
         }}
       />
     ) });
-    if (unlocked.tires) list.push({ id: "tires", node: <TiresSection /> });
+    if (unlocked.tires) list.push({ id: "tires", node: (
+      <TiresSection onNext={() => {
+        setUnlocked((u: { primary: boolean; angles: boolean; tires: boolean; damages: boolean }) => ({ ...u, damages: true }));
+        setTimeout(() => {
+          document.getElementById("damage-checklist")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 0);
+      }} />
+    ) });
+    if (unlocked.damages) list.push({ id: "damages", node: <DamageChecklistSection /> });
     return list;
-  }, [methods, unlocked.angles, unlocked.tires]);
+  }, [methods, unlocked.angles, unlocked.tires, unlocked.damages]);
 
   return (
     <FormProvider {...methods}>

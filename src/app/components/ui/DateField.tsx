@@ -50,24 +50,24 @@ export default function DateField<T extends FieldValues>({
                 disabled ? "bg-gray-100" : "bg-white",
               ].join(" ")}
             >
-              <input
-                id={id}
-                type="date"
-                className={[
+            <input
+              id={id}
+              type="date"
+              className={[
                   // Ensure no overflow within wrapper
                   "block w-full max-w-full box-border appearance-none outline-none bg-transparent",
                   "px-3 py-2 text-sm",
                   disabled ? "text-gray-400 cursor-not-allowed" : "text-gray-900",
-                ].join(" ")}
-                value={(field.value ?? "") as string}
-                onChange={(e) => field.onChange(e.target.value)}
-                onBlur={field.onBlur}
-                disabled={disabled}
+              ].join(" ")}
+              value={(field.value ?? "") as string}
+              onChange={(e) => field.onChange(e.target.value)}
+              onBlur={field.onBlur}
+              disabled={disabled}
                 data-field={String(name)}
                 aria-required={required || undefined}
                 aria-invalid={!!fieldState.error || undefined}
                 aria-describedby={fieldState.error ? errId : undefined}
-              />
+            />
             </div>
             {fieldState.error?.message && (
               <p id={errId} className="text-red-500 text-sm mt-1">
