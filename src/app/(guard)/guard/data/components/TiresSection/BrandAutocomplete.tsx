@@ -29,6 +29,7 @@ export default function BrandAutocomplete({
   const [query, setQuery] = React.useState<string>(value || "");
   const [activeIndex, setActiveIndex] = React.useState(-1);
   const listId = React.useId();
+  const listRef = React.useRef<HTMLUListElement | null>(null);
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -50,6 +51,13 @@ export default function BrandAutocomplete({
     if (open && filtered.length > 0) setActiveIndex(0);
     else setActiveIndex(-1);
   }, [open, filtered.length]);
+
+  // Keep the highlighted option visible while navigating with keyboard
+  React.useEffect(() => {
+    if (!open || activeIndex < 0) return;
+    const el = document.getElementById(`${listId}-option-${activeIndex}`);
+    el?.scrollIntoView({ block: "nearest" });
+  }, [activeIndex, open, listId]);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     const hasOptions = filtered.length > 0;
@@ -104,13 +112,19 @@ export default function BrandAutocomplete({
         aria-activedescendant={open && activeIndex >= 0 ? `${listId}-option-${activeIndex}` : undefined}
       />
       {open && (
-        <ul id={listId} className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-md bg-white p-1 shadow-[var(--shadow-2)]" role="listbox">
+        <ul
+          id={listId}
+          ref={listRef}
+          className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-md bg-white p-1 shadow-[var(--shadow-2)]"
+          role="listbox"
+        >
           {filtered.length > 0 ? (
             filtered.map((n, i) => (
               <li
                 key={n}
                 role="option"
                 aria-selected={i === activeIndex}
+                id={`${listId}-option-${i}`}
                 className={`cursor-pointer rounded-lg px-3 py-2 text-sm ${i === activeIndex ? "bg-[var(--color-green-hover)]" : "hover:bg-[var(--color-green-hover)]"}`}
                 onMouseDown={(e) => e.preventDefault()}
                 onMouseEnter={() => setActiveIndex(i)}
