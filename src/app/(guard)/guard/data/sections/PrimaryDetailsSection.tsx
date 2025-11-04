@@ -140,11 +140,11 @@ export default function PrimaryDetailsSection({ onNext, completed }: { onNext?: 
             <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 md:gap-8">
               <div className="min-w-0">
                 <DateField<TMovementForm>
-                  control={control}
-                  name="trip.safetyInspectionExpiry"
-                  label="Safety Inspection Expiry"
-                  required
-                />
+                control={control}
+                name="trip.safetyInspectionExpiry"
+                label="Safety Inspection Expiry"
+                required
+              />
                 {(() => {
                   if (!safetyDate) return null;
                   const parts = String(safetyDate).split("-").map((n) => Number(n));

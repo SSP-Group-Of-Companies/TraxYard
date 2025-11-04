@@ -189,21 +189,21 @@ export default function GuardDataPage() {
   return (
     <FormProvider {...methods}>
       <AnimatedPage>
-        <form onSubmit={onSubmit}>
+      <form onSubmit={onSubmit}>
           <div ref={containerRef} className="px-4 py-6 sm:px-6">
             <div className="space-y-8">
-              {sections.map((s) => (
+          {sections.map((s) => (
                 <section key={s.id} id={s.id} className="scroll-mt-20">
-                  {s.node}
-                </section>
-              ))}
+              {s.node}
+            </section>
+          ))}
             </div>
-          </div>
+        </div>
 
-          <button type="submit" className="hidden">
-            Submit
-          </button>
-        </form>
+        <button type="submit" className="hidden">
+          Submit
+        </button>
+      </form>
       </AnimatedPage>
     </FormProvider>
   );

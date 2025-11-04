@@ -146,7 +146,7 @@ export default function InYardModal({ open, onClose }: Props) {
             ref={dialogRef}
             role="document"
             className="relative w-full max-w-[900px] rounded-2xl bg-white ring-1 ring-black/10 shadow-xl
-                      max-h-[85vh] overflow-hidden flex flex-col"
+                       max-h-[85vh] overflow-hidden flex flex-col"
             style={{ maxHeight: "85dvh" }}
             variants={modalAnimations.content}
           >
@@ -156,18 +156,18 @@ export default function InYardModal({ open, onClose }: Props) {
                 <div className="min-w-0">
                   <h2 id="inyard-title" className="text-base sm:text-lg font-semibold text-gray-900 truncate">
                     All Trailers Currently IN Yard
-                  </h2>
+              </h2>
                   <div className="mt-0.5 text-xs text-gray-500 truncate" aria-label="Yard name">
                     {yardName}
                   </div>
                 </div>
-                <button
-                  aria-label="Close modal"
+              <button
+                aria-label="Close modal"
                   className="p-2 rounded-md hover:bg-black/5 active:scale-95 transition-colors shrink-0"
-                  onClick={onClose}
-                >
-                  <X className="h-5 w-5 text-gray-500" />
-                </button>
+                onClick={onClose}
+              >
+                <X className="h-5 w-5 text-gray-500" />
+              </button>
               </div>
             </div>
 
