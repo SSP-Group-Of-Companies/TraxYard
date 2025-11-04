@@ -184,12 +184,13 @@ export default function DocumentsField({
                   <div className="px-3 py-2 sm:px-4 sm:py-3 whitespace-nowrap">
                     <div className="relative inline-block align-top w-full sm:w-auto">
                       {/* Clickable tile for upload/replace with fixed size to keep row height consistent */}
-                    <UploadPicker
+                      <UploadPicker
                       label={item.photo ? "Replace file" : "Upload file"}
                       onPick={(file) => onPick(i, file)}
                         accept="image/jpeg,image/png,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                         disabled={busyIndex === i}
-                      showDefaultTile={false}
+                        showDefaultTile={false}
+                        menuPlacement="center"
                     >
                       <div
                           className={`w-full h-40 sm:w-28 sm:h-20 rounded-lg border-2 border-dashed grid place-items-center overflow-hidden cursor-pointer relative
