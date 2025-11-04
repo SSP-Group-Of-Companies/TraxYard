@@ -172,6 +172,7 @@ export function useTrailerSearch(opts?: UseTrailerSearchOptions): UseTrailerSear
   // State management
   const [page, setPage] = useState(1);
   const [rawQuery, setRawQuery] = useState(opts?.query ?? "");
+  const rawQueryRef = useRef<string>(opts?.query ?? "");
   const [debouncedQuery, setDebouncedQuery] = useState(opts?.query ?? "");
 
   const [rows, setRows] = useState<TTrailerUI[]>([]);
@@ -181,6 +182,7 @@ export function useTrailerSearch(opts?: UseTrailerSearchOptions): UseTrailerSear
 
   // Request cancellation
   const abortRef = useRef<AbortController | null>(null);
+  const inflightUrlRef = useRef<string | null>(null);
 
   // Debounced search input (250ms delay)
   useEffect(() => {
@@ -251,24 +253,23 @@ export function useTrailerSearch(opts?: UseTrailerSearchOptions): UseTrailerSear
     const data = valid.map(mapTrailerDto);
 
     // Normalize metadata with safe defaults
-    const normalizedMeta: Meta = meta
-      ? {
-          page: meta.page ?? 1,
-          pageSize: meta.pageSize ?? pageSize,
-          total: meta.total ?? valid.length,
-          totalPages: meta.totalPages ?? 1,
-          hasPrev: meta.hasPrev,
-          hasNext: meta.hasNext,
-        }
-      : {
-          page: 1,
-          pageSize,
-          total: valid.length,
-          totalPages: 1,
-        };
+    const m = meta ?? {} as any;
+    const mPage = m.page ?? page;
+    const mPageSize = m.pageSize ?? pageSize;
+    const mTotal = m.total ?? valid.length;
+    const mTotalPages = m.totalPages ?? Math.max(1, Math.ceil(mTotal / mPageSize));
+
+    const normalizedMeta: Meta = {
+      page: mPage,
+      pageSize: mPageSize,
+      total: mTotal,
+      totalPages: mTotalPages,
+      hasPrev: m.hasPrev ?? mPage > 1,
+      hasNext: m.hasNext ?? mPage < mTotalPages,
+    };
 
     return { data, meta: normalizedMeta };
-  }, [pageSize]);
+  }, [pageSize, page]);
 
   /**
    * Loads trailer data from the API
@@ -290,12 +291,15 @@ export function useTrailerSearch(opts?: UseTrailerSearchOptions): UseTrailerSear
     setLoading(true);
     setError(null);
 
+    inflightUrlRef.current = url;
     // Execute fetch with proper error handling
     (async () => {
       try {
         const { data, meta } = await doFetch(url, abortController.signal);
-        setRows(data);
-        setMeta(meta);
+        if (inflightUrlRef.current === url) {
+          setRows(data);
+          setMeta(meta);
+        }
       } catch (err: any) {
         // Only set error if it's not an abort error (expected during cancellation)
         if (err?.name !== "AbortError") {
@@ -326,8 +330,12 @@ export function useTrailerSearch(opts?: UseTrailerSearchOptions): UseTrailerSear
    * @param {string} query - New search query
    */
   const setQuery = (query: string) => {
-    setRawQuery(query);
-    setPage(1); // Reset to first page when query changes
+    const next = query ?? "";
+    setRawQuery(next);
+    if (next.trim() !== rawQueryRef.current.trim()) {
+      setPage(1);
+      rawQueryRef.current = next;
+    }
   };
 
   return {

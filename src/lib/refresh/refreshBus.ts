@@ -12,6 +12,9 @@ class RefreshBus {
   private cadence = 60_000; // default 1 min
   private timer: number | null = null;
   private started = false;
+  // Reference-counted pause gate so multiple modals/components can
+  // independently pause global refresh without stepping on each other.
+  private pauseCount = 0;
 
   /** Subscribe to ticks. Returns an unsubscribe fn. */
   subscribe(fn: Listener): () => void {
@@ -71,6 +74,9 @@ class RefreshBus {
   };
 
   private emit() {
+    // If globally paused (e.g., a modal is open), skip emitting.
+    if (this.pauseCount > 0) return;
+
     for (const fn of Array.from(this.listeners)) {
       try {
         fn();
@@ -78,6 +84,21 @@ class RefreshBus {
         /* no-op to isolate failures */
       }
     }
+  }
+
+  /** Pause global refresh ticks (reference-counted). */
+  pause() {
+    this.pauseCount++;
+  }
+
+  /** Resume global refresh ticks (reference-counted). */
+  resume() {
+    this.pauseCount = Math.max(0, this.pauseCount - 1);
+  }
+
+  /** Returns true when refresh is currently paused. */
+  isPaused() {
+    return this.pauseCount > 0;
   }
 }
 

@@ -10,10 +10,13 @@ type Props = {
   onContinue: () => void;
   showInspection: boolean;
   showDamaged: boolean;
+  title?: string;
+  customInspectionText?: string;
+  continueText?: string;
 };
 
 export default function PreflightWarnings({
-  open, onClose, onContinue, showInspection, showDamaged
+  open, onClose, onContinue, showInspection, showDamaged, title = "Heads up", customInspectionText, continueText = "Continue"
 }: Props) {
   const hasAny = showInspection || showDamaged;
 
@@ -33,7 +36,7 @@ export default function PreflightWarnings({
             variants={modalAnimations.content}
           >
             <div className="flex items-center justify-between mb-3">
-              <h3 id="warn-title" className="text-lg font-semibold">Heads up</h3>
+              <h3 id="warn-title" className="text-lg font-semibold">{title}</h3>
               <button className="p-2 rounded-md hover:bg-black/5" onClick={onClose} aria-label="Close">
                 <X className="h-5 w-5 text-gray-500" />
               </button>
@@ -44,7 +47,7 @@ export default function PreflightWarnings({
                 {showInspection && (
                   <p className="flex items-start gap-2 text-amber-700">
                     <AlertTriangle className="mt-0.5 h-4 w-4" />
-                    This trailer’s safety inspection appears to be expired.
+                    {customInspectionText || "This trailer’s safety inspection appears to be expired."}
                   </p>
                 )}
                 {showDamaged && (
@@ -61,7 +64,7 @@ export default function PreflightWarnings({
             <div className="mt-4 flex justify-end gap-2">
               <button className="button-base" onClick={onClose}>Cancel</button>
               <button className="button-base button-solid" style={{ background: "var(--color-blue)" }} onClick={onContinue}>
-                Continue
+                {continueText}
               </button>
             </div>
           </motion.div>

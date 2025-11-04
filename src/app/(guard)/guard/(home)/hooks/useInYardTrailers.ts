@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { TTrailerDto, TTrailerUI } from "@/types/frontend/trailer.dto";
 import { EYardId } from "@/types/yard.types";
 import { mapTrailerDto } from "@/lib/mappers/mapTrailerDto";
-import { refreshBus } from "@/lib/refresh/refreshBus";
+// import { refreshBus } from "@/lib/refresh/refreshBus";
 import { apiFetch } from "@/lib/api/apiFetch";
 import { TrailerDtoSchema } from "@/types/schemas/trailers.schema";
 import { extractTrailersAndMeta } from "@/lib/api/normalize";
@@ -30,6 +30,7 @@ type Result = {
   meta: Meta | null;
   loading: boolean;
   error: Error | null;
+  page: number;
   setPage: (p: number) => void;
   setQuery: (q: string) => void;
   refetch: () => void;
@@ -41,10 +42,11 @@ export function useInYardTrailers(
   opts?: { pageSize?: number; enabled?: boolean }
 ): Result {
   const pageSize = opts?.pageSize ?? 20;
-  const enabled = opts?.enabled ?? true;
+  // const enabled = opts?.enabled ?? true; // reserved for future use
 
   const [page, setPage] = useState(1);
   const [rawQuery, setRawQuery] = useState("");
+  const rawQueryRef = useRef<string>("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
 
   const [rows, setRows] = useState<TTrailerUI[]>([]);
@@ -53,6 +55,7 @@ export function useInYardTrailers(
   const [error, setError] = useState<Error | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
+  const inflightUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedQuery(rawQuery.trim()), 250);
@@ -91,21 +94,28 @@ export function useInYardTrailers(
       }
     }
 
-    return { 
-      data: valid, 
-      meta: meta ? {
-        page: meta.page ?? 1,
-        pageSize: meta.pageSize ?? 20,
-        total: meta.total ?? 0,
-        totalPages: meta.totalPages ?? 1,
-        hasPrev: meta.hasPrev,
-        hasNext: meta.hasNext,
-        sortBy: meta.sortBy,
-        sortDir: meta.sortDir,
-        filters: meta.filters,
-      } : null
+    // Normalize meta with safe defaults and computed totals
+    const m = meta ?? {};
+    const mPage = m.page ?? page; // fall back to local state
+    const mPageSize = m.pageSize ?? pageSize;
+    const mTotal = m.total ?? (items?.length ?? 0);
+    const mTotalPages = m.totalPages ?? Math.max(1, Math.ceil(mTotal / mPageSize));
+
+    return {
+      data: valid,
+      meta: {
+        page: mPage,
+        pageSize: mPageSize,
+        total: mTotal,
+        totalPages: mTotalPages,
+        hasPrev: m.hasPrev ?? mPage > 1,
+        hasNext: m.hasNext ?? mPage < mTotalPages,
+        sortBy: m.sortBy,
+        sortDir: m.sortDir,
+        filters: m.filters,
+      },
     };
-  }, []);
+  }, [pageSize, page]);
 
   const load = useCallback(() => {
     if (!url) {
@@ -119,11 +129,15 @@ export function useInYardTrailers(
     setLoading(true);
     setError(null);
 
+    inflightUrlRef.current = url;
     (async () => {
       try {
         const { data, meta } = await doFetch(url, ac.signal);
-        setRows(data.map(mapTrailerDto));
-        setMeta(meta);
+        // Only apply if this response matches the latest requested url
+        if (inflightUrlRef.current === url) {
+          setRows(data.map(mapTrailerDto));
+          setMeta(meta);
+        }
       } catch (err: any) {
         if (err?.name === "AbortError") return;
         if (
@@ -161,17 +175,17 @@ export function useInYardTrailers(
     return () => abortRef.current?.abort();
   }, [load]);
 
-  // subscribe to the global refresh clock only when enabled (modal open)
-  useEffect(() => {
-    if (!enabled) return;
-    const unsubscribe = refreshBus.subscribe(load);
-    return () => unsubscribe();
-  }, [enabled, load]);
+  // Disabled: background refresh while typing causes mobile keyboards to flicker.
+  // A manual refresh control can call `refetch` if needed.
 
   const setQuery = (q: string) => {
-    setRawQuery(q);
-    setPage(1);
+    const next = q ?? "";
+    setRawQuery(next);
+    if (next.trim() !== rawQueryRef.current.trim()) {
+      setPage(1);
+      rawQueryRef.current = next;
+    }
   };
 
-  return { rows, meta, loading, error, setPage, setQuery, refetch: load };
+  return { rows, meta, loading, error, page, setPage, setQuery, refetch: load };
 }

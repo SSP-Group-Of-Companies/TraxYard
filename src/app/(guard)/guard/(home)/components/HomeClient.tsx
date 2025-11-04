@@ -26,7 +26,6 @@
  * - Preflight warning flow for damaged/expired trailers
  * - Responsive design and accessibility
  */
-
 "use client";
 
 import { useMemo, useState } from "react";
@@ -52,21 +51,14 @@ import InYardModal from "./InYardModal";
 import PreflightWarnings from "./PreflightWarnings";
 
 export default function HomeClient() {
-  // Global state management
   const { yardId } = useYardStore();
   const { data: session } = useSession();
   const router = useRouter();
 
-  // Centralized data fetching with auto-refresh
   const { data, isLoading } = useGuardDashboard(yardId);
-
-  // Track action mode (IN, OUT, INSPECTION)
   const [mode, setMode] = useState<"IN" | "OUT" | "INSPECTION" | null>(null);
-
-  // Track In-Yard modal
   const [showInYard, setShowInYard] = useState(false);
 
-  // Preflight logic
   const preflight = usePreflightTrailer();
   const { setSelection } = useGuardFlowStore();
   const [warn, setWarn] = useState<{
@@ -76,9 +68,6 @@ export default function HomeClient() {
     mode?: "IN" | "OUT" | "INSPECTION";
   }>({ open: false, flags: { inspectionExpired: false, damaged: false } });
 
-  /**
-   * Time-based greeting
-   */
   const greet = useMemo(() => {
     const h = new Date().getHours();
     if (h < 12) return "Good morning";
@@ -88,17 +77,15 @@ export default function HomeClient() {
 
   const firstName =
     (session?.user?.name?.trim().split(/\s+/)[0] as string | undefined) ?? "";
-
   const counts = data?.stats ?? null;
 
   return (
     <motion.section
-      className="container-guard"
+      className="container-guard pb-20 sm:pb-24"
       variants={staggerContainer}
       initial="initial"
       animate="animate"
     >
-      {/* ================= Header ================= */}
       <motion.div
         className="flex flex-col items-start gap-3 py-6 sm:flex-row sm:items-center sm:justify-between"
         variants={staggerItem}
@@ -123,8 +110,7 @@ export default function HomeClient() {
         </motion.div>
       </motion.div>
 
-      {/* ================= Yard Capacity ================= */}
-      <motion.div className="space-y-4 sm:space-y-6" variants={staggerItem}>
+      <motion.div className="space-y-6 md:space-y-8" variants={staggerItem}>
         <motion.div variants={fadeInVariants}>
           <CapacityCard
             yardName={data?.yard?.name ?? null}
@@ -135,7 +121,6 @@ export default function HomeClient() {
           />
         </motion.div>
 
-        {/* ================= Daily Stats ================= */}
         <motion.div variants={fadeInVariants}>
           <DailyCounts
             inCount={isLoading ? null : counts?.inCount ?? 0}
@@ -145,15 +130,13 @@ export default function HomeClient() {
           />
         </motion.div>
 
-        {/* ================= Action Buttons ================= */}
-        <motion.div className="mt-6" variants={fadeInVariants}>
+        <motion.div variants={fadeInVariants}>
           <ActionButtons active={mode} onSelect={(m) => setMode(m)} />
         </motion.div>
       </motion.div>
 
-      {/* ================= Modals ================= */}
       <TrailerSearchModal
-        key={mode ?? "none"} // forces a clean mount
+        key={mode ?? "none"}
         open={mode !== null}
         mode={mode ?? "IN"}
         onClose={() => setMode(null)}
@@ -161,8 +144,10 @@ export default function HomeClient() {
           if (!mode) return;
           const res = await preflight(trailerNumber);
 
-          if (res.exists && (res.flags.inspectionExpired || res.flags.damaged)) {
-            // show preflight warning modal
+          if (
+            res.exists &&
+            (res.flags.inspectionExpired || res.flags.damaged)
+          ) {
             setWarn({
               open: true,
               flags: res.flags,
@@ -172,7 +157,6 @@ export default function HomeClient() {
             return;
           }
 
-          // proceed directly if no warnings
           setSelection({
             mode,
             trailerNumber,
@@ -200,7 +184,6 @@ export default function HomeClient() {
         }}
       />
 
-      {/* Preflight Warning Modal */}
       <PreflightWarnings
         open={warn.open}
         showInspection={warn.flags.inspectionExpired}
@@ -223,7 +206,6 @@ export default function HomeClient() {
         }}
       />
 
-      {/* In-Yard Modal */}
       <InYardModal open={showInYard} onClose={() => setShowInYard(false)} />
     </motion.section>
   );

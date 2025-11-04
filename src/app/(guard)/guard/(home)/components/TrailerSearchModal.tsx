@@ -69,6 +69,8 @@ import { X, Search, AlertTriangle } from "lucide-react";
 import Pager from "@/components/ui/Pager";
 import { useTrailerSearch } from "../hooks/useTrailerSearch";
 import { modalAnimations } from "@/lib/animations";
+import { refreshBus } from "@/lib/refresh/refreshBus";
+import { useSmartGlobalLoading } from "@/hooks/useSmartGlobalLoading";
 
 /**
  * Focus trap helper function
@@ -163,6 +165,7 @@ export default function TrailerSearchModal({
   // Local state for search input
   const [typed, setTyped] = useState("");
   const enabled = open === true;
+  const { begin } = useSmartGlobalLoading();
 
   // Trailer search hook with configuration
   const { rows, meta, loading, error, page, setPage, setQuery } = useTrailerSearch({
@@ -237,6 +240,16 @@ export default function TrailerSearchModal({
     setQuery(typed);
   }, [typed, setQuery]);
 
+  // While the modal is open, pause global refresh ticks so mobile
+  // virtual keyboards are not dismissed by background re-renders.
+  useEffect(() => {
+    if (!open) return;
+    refreshBus.pause();
+    return () => {
+      refreshBus.resume();
+    };
+  }, [open]);
+
   /**
    * Determines inline status label based on search results and trailer state
    * 
@@ -250,8 +263,12 @@ export default function TrailerSearchModal({
     const query = typed.trim();
     if (!query) return null;
 
-    // Find exact match for the typed trailer number
-    const match = rows.find(row => row.trailerNumber === query);
+    // Normalize for case and formatting differences (e.g., hyphens/spaces)
+    const normalize = (s: string) => s.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+    const nQuery = normalize(query);
+
+    // Find normalized match for the typed trailer number
+    const match = rows.find(row => normalize(row.trailerNumber ?? "") === nQuery);
     if (!match) {
       return { kind: "new", text: "New trailer (not found in DB)" };
     }
@@ -289,7 +306,10 @@ export default function TrailerSearchModal({
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4"
+          className="fixed inset-0 z-[80] flex items-start sm:items-center justify-center p-2 sm:p-4 overscroll-contain"
+          style={{
+            paddingTop: "calc(var(--nav-height,56px) + env(safe-area-inset-top) + 8px)",
+          }}
       role="dialog"
       aria-modal="true"
           aria-labelledby="ts-title"
@@ -311,35 +331,51 @@ export default function TrailerSearchModal({
             role="document"
             className="relative w-full max-w-[900px] rounded-2xl bg-white ring-1 ring-black/10 shadow-xl
                        max-h-[85vh] overflow-hidden flex flex-col"
+            style={{ maxHeight: "85dvh" }}
             variants={modalAnimations.content}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-black/10">
-              <h2 id="ts-title" className="text-lg sm:text-xl font-semibold text-gray-900">
+            <div className="px-4 sm:px-6 py-4 border-b border-black/10">
+              <div className="flex items-start justify-between gap-3">
+                <h2 id="ts-title" className="text-base sm:text-lg font-semibold text-gray-900">
                 Search Trailers {mode === "IN" ? "(Coming IN)" : mode === "OUT" ? "(Going OUT)" : "(Inspection)"}
               </h2>
           <button
                 aria-label="Close modal"
-                className="p-2 rounded-md hover:bg-black/5 active:scale-95 transition-colors"
+                  className="p-2 rounded-md hover:bg-black/5 active:scale-95 transition-colors shrink-0"
             onClick={onClose}
           >
                 <X className="h-5 w-5 text-gray-500" />
           </button>
+              </div>
         </div>
 
             {/* Body */}
             <div className="p-3 sm:p-6 overflow-y-auto">
               {/* Search Controls */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                <div className="relative w-full sm:flex-1">
+              <div className="flex flex-col gap-2 sm:gap-3 mb-3 sm:mb-4">
+                {/* Pagination Controls (first) */}
+                <div className="shrink-0 flex justify-end">
+                  <Pager
+                    page={page}
+                    totalPages={meta?.totalPages ?? 1}
+                    total={meta?.total ?? rows.length}
+                    pageSize={meta?.pageSize ?? 20}
+                    onPage={setPage}
+                    disabled={loading}
+                    showCount
+                    countVariant="muted"
+                  />
+                </div>
+
+                {/* Search */}
+                <div className="relative w-full">
                   <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
                   <input
                     ref={inputRef}
                     type="text"
                     placeholder="Search trailer number"
-                    className="w-full rounded-xl border border-gray-200 px-10 py-2.5 text-sm
-                               outline-none focus:ring-2 focus:ring-[#0B63B6]/30 focus:border-[#0B63B6]
-                               placeholder:text-gray-400"
+                    className="w-full rounded-xl border border-gray-200 px-10 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#0B63B6]/30 focus:border-[#0B63B6] placeholder:text-gray-400"
                     autoComplete="off"
                     autoCorrect="off"
                     spellCheck={false}
@@ -350,16 +386,12 @@ export default function TrailerSearchModal({
                       if (e.key === "Enter") {
                         const query = typed.trim();
                         if (query) {
-                          // Find exact match and continue if found
                           const match = rows.find(row => row.trailerNumber === query);
-                          if (match) {
-                            onContinue(match.trailerNumber);
-                          }
+                          if (match) { begin(); onContinue(match.trailerNumber); }
                         }
                       }
                     }}
                   />
-                  {/* Clear button */}
                   {typed.length > 0 && (
                     <button
                       type="button"
@@ -370,16 +402,10 @@ export default function TrailerSearchModal({
                       <X className="h-4 w-4" />
                     </button>
                   )}
-                  
-                  {/* Inline Status Labels */}
                   {statusLabel && (
                     <div
                       className={`mt-1 text-xs ${
-                        statusLabel.kind === "new" 
-                          ? "text-red-600" 
-                          : statusLabel.kind === "existingWarn" 
-                            ? "text-amber-600" 
-                            : "text-[var(--color-green)]"
+                        statusLabel.kind === "new" ? "text-red-600" : statusLabel.kind === "existingWarn" ? "text-amber-600" : "text-[var(--color-green)]"}
                       }`}
                       role="status"
                       aria-live="polite"
@@ -387,21 +413,6 @@ export default function TrailerSearchModal({
                       {statusLabel.text}
                     </div>
                   )}
-                </div>
-                
-                {/* Pagination Controls */}
-                <div className="shrink-0 self-end sm:self-auto">
-                  <Pager
-                    page={meta?.page ?? page}
-                    totalPages={meta?.totalPages ?? 1}
-                    total={meta?.total ?? rows.length}
-                    pageSize={meta?.pageSize ?? 20}
-                    onPage={setPage}
-                    disabled={loading}
-                    compact
-                    showCount
-                    countVariant="muted"
-                  />
                 </div>
               </div>
 
@@ -485,10 +496,11 @@ export default function TrailerSearchModal({
                             tabIndex={0}
                             role="button"
                             aria-label={`Select trailer ${trailer.trailerNumber}`}
-                            onClick={() => onContinue(trailer.trailerNumber)}
+                            onClick={() => { begin(); onContinue(trailer.trailerNumber); }}
                             onKeyDown={(e) => {
                               if (e.key === "Enter" || e.key === " ") {
                                 e.preventDefault();
+                                begin();
                                 onContinue(trailer.trailerNumber);
                               }
                             }}

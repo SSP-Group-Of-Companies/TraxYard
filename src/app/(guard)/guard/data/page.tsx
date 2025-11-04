@@ -1,48 +1,210 @@
 "use client";
 
+/**
+ * GuardDataPage — one-pager container for movement capture
+ * - Zod-resolved RHF form; sections are snap-scrolled cards
+ * - Submit wiring is added later; this page currently logs a snapshot
+ */
+
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useEffect } from "react";
-import { useGuardFlowStore } from "@/store/useGuardFlowStore";
+import { FormProvider, useForm } from "react-hook-form";
+import type { TMovementForm } from "@/types/frontend/form/movement.form";
+import PrimaryDetailsSection from "./sections/PrimaryDetailsSection";
+import AnglesSection from "./sections/AnglesSection";
+import TiresSection from "./sections/TiresSection";
+import DamageChecklistSection from "./sections/DamageChecklistSection";
+import { PrimaryDetailsFormSchema } from "@/types/schemas/primaryDetails.schema";
+import { zodRHFResolver } from "@/lib/validation/zodRHFResolver";
+import AnimatedPage from "@/app/components/ui/AnimatedPage";
+import { scrollToFirstInvalid } from "@/lib/utils/scrollToError";
+import { usePreflightTrailer } from "../(home)/hooks/usePreflightTrailer";
 
 export default function GuardDataPage() {
-  const qp = useSearchParams();
-  const mode = (qp.get("mode") as "IN" | "OUT" | "INSPECTION" | null) ?? null;
-  const trailer = qp.get("trailer");
-  const isNew = qp.get("new") === "1";
-  const { selection } = useGuardFlowStore();
+  const sp = useSearchParams();
+  const initialMode = sp.get("mode") || "IN";
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [unlocked, setUnlocked] = useState<{ primary: boolean; angles: boolean; tires: boolean; damages: boolean }>({ primary: true, angles: false, tires: false, damages: false });
 
+  const methods = useForm<TMovementForm>({
+    mode: "onSubmit",
+    reValidateMode: "onChange",
+    resolver: zodRHFResolver(PrimaryDetailsFormSchema),
+    defaultValues: {
+      carrier: { carrierName: "", driverName: "", truckNumber: "" },
+      trip: {
+        safetyInspectionExpiry: "",
+        customerName: "",
+        destination: "",
+        orderNumber: "",
+        isLoaded: undefined,
+        trailerBound: undefined,
+      },
+      documents: [],
+      angles: {
+        FRONT: { photo: null },
+        LEFT_FRONT: { photo: null },
+        LEFT_REAR: { photo: null },
+        REAR: { photo: null },
+        RIGHT_REAR: { photo: null },
+        RIGHT_FRONT: { photo: null },
+        TRAILER_NUMBER_VIN: { photo: null },
+        LANDING_GEAR_UNDERCARRIAGE: { photo: null },
+      },
+      axles: [
+        {
+          axleNumber: 1,
+          type:  "DUAL" as any,
+          left: {
+            photo: null,
+            outer: { brand: "", psi: undefined as any, condition: undefined as any },
+            inner: { brand: "", psi: undefined as any, condition: undefined as any },
+          },
+          right: {
+            photo: null,
+            outer: { brand: "", psi: undefined as any, condition: undefined as any },
+            inner: { brand: "", psi: undefined as any, condition: undefined as any },
+          },
+        },
+        {
+          axleNumber: 2,
+          type:  "DUAL" as any,
+          left: {
+            photo: null,
+            outer: { brand: "", psi: undefined as any, condition: undefined as any },
+            inner: { brand: "", psi: undefined as any, condition: undefined as any },
+          },
+          right: {
+            photo: null,
+            outer: { brand: "", psi: undefined as any, condition: undefined as any },
+            inner: { brand: "", psi: undefined as any, condition: undefined as any },
+          },
+        },
+      ],
+    },
+  });
+
+  // Prefill safety inspection expiry from selected trailer when available
+  const preflight = usePreflightTrailer();
   useEffect(() => {
-    // (Optional) soft assert we have selection for richer UX
-    // If not, we still can render by reading query params alone.
-    // console.debug("Guard selection:", selection);
-  }, [selection]);
+    const trailerNumber = sp.get("trailer");
+    if (!trailerNumber) return;
+
+    (async () => {
+      try {
+        const res = await preflight(trailerNumber);
+        const dateLike = res?.dto?.safetyInspectionExpiryDate as any;
+        if (!dateLike) return;
+        // Normalize to date-only string without timezone to avoid +/-1 shifts
+        let ymd = "";
+        if (typeof dateLike === "string") {
+          const m = dateLike.match(/^\d{4}-\d{2}-\d{2}/);
+          if (m) ymd = m[0];
+          else {
+            const d = new Date(dateLike);
+            if (d instanceof Date && !Number.isNaN(d.getTime())) {
+              ymd = d.toISOString().slice(0, 10);
+            }
+          }
+        } else if (dateLike instanceof Date && !Number.isNaN(dateLike.getTime())) {
+          ymd = dateLike.toISOString().slice(0, 10);
+        }
+        if (!ymd) return;
+        methods.setValue("trip.safetyInspectionExpiry", ymd, { shouldDirty: false, shouldValidate: true });
+      } catch {
+        // best-effort prefill; ignore failures
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const onSubmit = methods.handleSubmit((values) => {
+    const payload = {
+      ...values,
+      trip: {
+        ...values.trip,
+        safetyInspectionExpiry: values.trip.safetyInspectionExpiry
+          ? new Date(values.trip.safetyInspectionExpiry)
+          : null,
+      },
+    };
+    console.log("Primary Details snapshot:", payload, { initialMode });
+  });
+
+  const sections = useMemo(() => {
+    const list: Array<{ id: string; node: React.ReactNode }> = [
+      {
+        id: "primary",
+        node: (
+          <PrimaryDetailsSection
+            completed={unlocked.angles}
+            onNext={async () => {
+              // Use handleSubmit to run the resolver and populate field-level errors exactly like a real submit
+              const ok = await new Promise<boolean>((resolve) => {
+                methods.handleSubmit(
+                  () => resolve(true),
+                  () => resolve(false)
+                )();
+              });
+              if (!ok) {
+                // scroll to first invalid field within this section
+                requestAnimationFrame(() => {
+                  const sectionEl = document.getElementById("primary");
+                  scrollToFirstInvalid(sectionEl as HTMLElement);
+                });
+                return;
+              }
+              setUnlocked((u) => ({ ...u, angles: true }));
+              setTimeout(() => {
+                document.getElementById("angles-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }, 0);
+            }}
+          />
+        ),
+      },
+    ];
+    if (unlocked.angles) list.push({ id: "angles", node: (
+      <AnglesSection
+        completed={unlocked.tires}
+        onNext={() => {
+          setUnlocked((u) => ({ ...u, tires: true }));
+          setTimeout(() => {
+            document.getElementById("tires-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 0);
+        }}
+      />
+    ) });
+    if (unlocked.tires) list.push({ id: "tires", node: (
+      <TiresSection onNext={() => {
+        setUnlocked((u: { primary: boolean; angles: boolean; tires: boolean; damages: boolean }) => ({ ...u, damages: true }));
+        setTimeout(() => {
+          document.getElementById("damage-checklist")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 0);
+      }} />
+    ) });
+    if (unlocked.damages) list.push({ id: "damages", node: <DamageChecklistSection /> });
+    return list;
+  }, [methods, unlocked.angles, unlocked.tires, unlocked.damages]);
 
   return (
-    <section className="container-guard py-6 space-y-6">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {mode ? `Movement: ${mode}` : "Movement"}
-          </h1>
-          <p className="text-sm text-muted">
-            {isNew ? "New trailer" : trailer ? `Trailer: ${trailer}` : "No trailer selected"}
-            {selection?.flags?.inspectionExpired && " · Safety inspection expired"}
-            {selection?.flags?.damaged && " · Reported damage"}
-          </p>
+    <FormProvider {...methods}>
+      <AnimatedPage>
+      <form onSubmit={onSubmit}>
+          <div ref={containerRef} className="px-4 py-6 sm:px-6">
+            <div className="space-y-8">
+          {sections.map((s) => (
+                <section key={s.id} id={s.id} className="scroll-mt-20">
+              {s.node}
+            </section>
+          ))}
+            </div>
         </div>
-        {/* TODO: Save/Submit buttons will live here */}
-      </header>
 
-      {/* ===== Section 1: Primary details (scaffold) ===== */}
-      <div className="rounded-2xl ring-1 ring-black/10 p-4 bg-white">
-        <h2 className="text-lg font-semibold mb-3">Primary details</h2>
-        {/* TODO: Carrier Info, Trip Info, Load, Bound, Documents uploader, etc. */}
-        <p className="text-sm text-gray-600">
-          Build out the Primary section here (Carrier Info, Trip Info, Load/Bound, Documents) per spec.
-        </p>
-      </div>
-
-      {/* TODO: Sections: Photo Angles, Tires, Damages… */}
-    </section>
+        <button type="submit" className="hidden">
+          Submit
+        </button>
+      </form>
+      </AnimatedPage>
+    </FormProvider>
   );
 }

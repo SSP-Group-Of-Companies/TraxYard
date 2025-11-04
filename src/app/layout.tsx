@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import SessionWrapper from "./components/SessionWrapper";
+import GlobalLayoutWrapper from "./components/shared/GlobalLayoutWrapper";
 
 // ---- Fonts (CSS variables) ----
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -110,7 +111,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[${SURFACE}] text-[${BRAND_PRIMARY}] min-h-dvh`}
       >
-        <SessionWrapper>{children}</SessionWrapper>
+        <SessionWrapper>
+          <GlobalLayoutWrapper>{children}</GlobalLayoutWrapper>
+        </SessionWrapper>
       </body>
     </html>
   );

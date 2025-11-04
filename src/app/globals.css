@@ -33,6 +33,13 @@
   --color-error: #dc2626;
   --color-orange: #f97316;
   --color-red: #ef4444;
+  --color-red-hover: #fef2f2; /* Very light red for hover states */
+  --color-green-hover: #f0fdf4; /* Very light green for hover states */
+  --color-primary-action: #f8fafc; /* Light off-white for primary actions */
+  --color-primary-action-hover: #e2e8f0; /* Slightly darker gray for hover */
+  
+  /* Weather gradient for UI components */
+  --weather-gradient: linear-gradient(135deg, var(--color-blue), var(--color-green));
 }
 
 /* 3) Base reset & typography */
@@ -285,6 +292,45 @@ canvas {
   100% {
     transform: translateX(100%);
   }
+}
+
+/* Star color reveal (loader) */
+@keyframes star-reveal-fill {
+  0% {
+    clip-path: inset(0 100% 0 0);
+    filter: saturate(0.4) brightness(0.9);
+  }
+  50% {
+    clip-path: inset(0 50% 0 0);
+    filter: saturate(0.8) brightness(1);
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+    filter: saturate(1) brightness(1);
+  }
+}
+
+@keyframes star-reveal-radial {
+  0% {
+    clip-path: circle(0% at center);
+    filter: saturate(0.4) brightness(0.9);
+  }
+  50% {
+    clip-path: circle(50% at center);
+    filter: saturate(0.8) brightness(1);
+  }
+  100% {
+    clip-path: circle(100% at center);
+    filter: saturate(1) brightness(1);
+  }
+}
+
+.animate-star-reveal {
+  animation: star-reveal-fill 1.6s ease-in-out forwards;
+}
+
+.animate-star-reveal-radial {
+  animation: star-reveal-radial 2s ease-in-out forwards;
 }
 
 .ssp-animated-ring {
