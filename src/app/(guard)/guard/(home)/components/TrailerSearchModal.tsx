@@ -70,7 +70,6 @@ import Pager from "@/components/ui/Pager";
 import { useTrailerSearch } from "../hooks/useTrailerSearch";
 import { modalAnimations } from "@/lib/animations";
 import { refreshBus } from "@/lib/refresh/refreshBus";
-import { useSmartGlobalLoading } from "@/hooks/useSmartGlobalLoading";
 
 /**
  * Focus trap helper function
@@ -165,7 +164,6 @@ export default function TrailerSearchModal({
   // Local state for search input
   const [typed, setTyped] = useState("");
   const enabled = open === true;
-  const { begin } = useSmartGlobalLoading();
 
   // Trailer search hook with configuration
   const { rows, meta, loading, error, page, setPage, setQuery } = useTrailerSearch({
@@ -387,7 +385,7 @@ export default function TrailerSearchModal({
                         const query = typed.trim();
                         if (query) {
                           const match = rows.find(row => row.trailerNumber === query);
-                          if (match) { begin(); onContinue(match.trailerNumber); }
+                          if (match) { onContinue(match.trailerNumber); }
                         }
                       }
                     }}
@@ -496,11 +494,10 @@ export default function TrailerSearchModal({
                             tabIndex={0}
                             role="button"
                             aria-label={`Select trailer ${trailer.trailerNumber}`}
-                            onClick={() => { begin(); onContinue(trailer.trailerNumber); }}
+                            onClick={() => { onContinue(trailer.trailerNumber); }}
                             onKeyDown={(e) => {
                               if (e.key === "Enter" || e.key === " ") {
                                 e.preventDefault();
-                                begin();
                                 onContinue(trailer.trailerNumber);
                               }
                             }}

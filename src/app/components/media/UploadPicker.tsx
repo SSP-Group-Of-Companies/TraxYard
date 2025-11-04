@@ -128,11 +128,11 @@ export default function UploadPicker({
             id={menuId}
             role="menu"
             aria-labelledby={btnId}
-            className="absolute inset-0 z-[9999] grid place-items-center"
+            className="fixed inset-0 z-[9999] grid place-items-center"
           >
             <button
               aria-label="Close"
-              className="absolute inset-0 bg-black/20 backdrop-blur-[1px]"
+              className="absolute inset-0 bg-black/20"
               onClick={() => setOpen(false)}
             />
             <div className="relative w-[min(300px,90%)] rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden">

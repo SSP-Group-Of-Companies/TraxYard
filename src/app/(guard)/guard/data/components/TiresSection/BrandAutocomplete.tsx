@@ -92,6 +92,7 @@ export default function BrandAutocomplete({
     <div ref={wrapRef} className={`relative ${className}`} aria-invalid={ariaInvalid || undefined} data-field={dataField}>
       <input
         type="text"
+        role="combobox"
         placeholder={placeholder}
         className={["w-full rounded-md shadow-sm px-3 py-2 text-sm outline-none focus:ring-[var(--color-green)] focus:outline-none focus:shadow-md bg-white border border-gray-200", ariaInvalid ? "ring-2 ring-red-300 border-red-300" : ""].join(" ")}
         value={query}

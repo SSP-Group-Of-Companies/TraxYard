@@ -148,6 +148,8 @@ export default function HomeClient() {
             res.exists &&
             (res.flags.inspectionExpired || res.flags.damaged)
           ) {
+            // Close the search modal so the warning popup is visible
+            setMode(null);
             setWarn({
               open: true,
               flags: res.flags,

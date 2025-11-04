@@ -14,6 +14,7 @@ import PrimaryDetailsSection from "./sections/PrimaryDetailsSection";
 import AnglesSection from "./sections/AnglesSection";
 import TiresSection from "./sections/TiresSection";
 import DamageChecklistSection from "./sections/DamageChecklistSection";
+import CtpatSection from "./sections/CtpatSection";
 import { PrimaryDetailsFormSchema } from "@/types/schemas/primaryDetails.schema";
 import { zodRHFResolver } from "@/lib/validation/zodRHFResolver";
 import AnimatedPage from "@/app/components/ui/AnimatedPage";
@@ -24,7 +25,7 @@ export default function GuardDataPage() {
   const sp = useSearchParams();
   const initialMode = sp.get("mode") || "IN";
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [unlocked, setUnlocked] = useState<{ primary: boolean; angles: boolean; tires: boolean; damages: boolean }>({ primary: true, angles: false, tires: false, damages: false });
+  const [unlocked, setUnlocked] = useState<{ primary: boolean; angles: boolean; tires: boolean; damages: boolean; ctpat: boolean }>({ primary: true, angles: false, tires: false, damages: false, ctpat: false });
 
   const methods = useForm<TMovementForm>({
     mode: "onSubmit",
@@ -51,6 +52,9 @@ export default function GuardDataPage() {
         TRAILER_NUMBER_VIN: { photo: null },
         LANDING_GEAR_UNDERCARRIAGE: { photo: null },
       },
+      damageChecklist: {} as any,
+      damages: [],
+      ctpat: {} as any,
       axles: [
         {
           axleNumber: 1,
@@ -86,6 +90,7 @@ export default function GuardDataPage() {
 
   // Prefill safety inspection expiry from selected trailer when available
   const preflight = usePreflightTrailer();
+  const [preflightMeta, setPreflightMeta] = useState<{ id?: string | null; condition?: string | null } | null>(null);
   useEffect(() => {
     const trailerNumber = sp.get("trailer");
     if (!trailerNumber) return;
@@ -93,7 +98,11 @@ export default function GuardDataPage() {
     (async () => {
       try {
         const res = await preflight(trailerNumber);
-        const dateLike = res?.dto?.safetyInspectionExpiryDate as any;
+        const dto = res?.dto as any;
+        const dateLike = dto?.safetyInspectionExpiryDate as any;
+        const trailerId = (dto?.id || dto?._id || dto?.trailerId) as string | undefined;
+        const trailerCondition = (dto?.condition) as string | undefined;
+        setPreflightMeta({ id: trailerId ?? null, condition: trailerCondition ?? null });
         if (!dateLike) return;
         // Normalize to date-only string without timezone to avoid +/-1 shifts
         let ymd = "";
@@ -176,15 +185,16 @@ export default function GuardDataPage() {
     ) });
     if (unlocked.tires) list.push({ id: "tires", node: (
       <TiresSection onNext={() => {
-        setUnlocked((u: { primary: boolean; angles: boolean; tires: boolean; damages: boolean }) => ({ ...u, damages: true }));
+        setUnlocked((u) => ({ ...u, damages: true }));
         setTimeout(() => {
           document.getElementById("damage-checklist")?.scrollIntoView({ behavior: "smooth", block: "start" });
         }, 0);
       }} />
     ) });
-    if (unlocked.damages) list.push({ id: "damages", node: <DamageChecklistSection /> });
+    if (unlocked.damages) list.push({ id: "damages", node: <DamageChecklistSection trailerId={preflightMeta?.id || undefined} trailerCondition={preflightMeta?.condition || undefined} onNext={() => { setUnlocked((u)=>({ ...u, ctpat: true })); setTimeout(()=> document.getElementById("ctpat-section")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0); }} /> });
+    if (unlocked.ctpat) list.push({ id: "ctpat", node: <CtpatSection onNext={() => { /* end */ }} /> });
     return list;
-  }, [methods, unlocked.angles, unlocked.tires, unlocked.damages]);
+  }, [methods, unlocked.angles, unlocked.tires, unlocked.damages, unlocked.ctpat, preflightMeta]);
 
   return (
     <FormProvider {...methods}>

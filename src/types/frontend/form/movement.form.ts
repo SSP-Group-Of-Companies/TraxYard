@@ -1,4 +1,4 @@
-import { ETrailerBound, EAxleType, ETireCondition } from "@/types/movement.types";
+import { ETrailerBound, EAxleType, ETireCondition, EDamageChecklistItem, EDamageLocation, EDamageType, ECtpatItem } from "@/types/movement.types";
 import type { IFileAsset } from "@/types/shared.types";
 
 export type TMovementForm = {
@@ -43,6 +43,16 @@ export type TMovementForm = {
       inner?: { brand: string; psi: number; condition: ETireCondition } | null;
     };
   }>;
+  damageChecklist?: Record<EDamageChecklistItem, boolean>;
+  damages?: Array<{
+    location: EDamageLocation;
+    type: EDamageType;
+    comment?: string;
+    photo?: IFileAsset | null;
+    newDamage: boolean; // true for new rows, false for imported previous damages
+    // UI only badge e.g., OLD/NEW is derived from newDamage
+  }>;
+  ctpat?: Record<ECtpatItem, boolean>;
 };
 
 
