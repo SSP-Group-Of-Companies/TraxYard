@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
       new PutObjectCommand({
         Bucket: process.env.APP_AWS_BUCKET_NAME!,
         Key: statusKey,
-        Body: Buffer.from(JSON.stringify(initialStatus)),
+        Body: JSON.stringify(initialStatus),
         ContentType: "application/json",
       })
     );
