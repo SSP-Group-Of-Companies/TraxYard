@@ -45,7 +45,7 @@ export async function GET(_req: NextRequest, ctx: RouteCtx) {
     }
 
     // Latest movement of ANY type
-    const movement = await Movement.findOne({ trailer: id }).sort({ ts: -1 }).lean();
+    const movement = await Movement.findOne({ trailer: id }).sort({ ts: -1 }).populate("trailer").lean();
 
     if (!movement) {
       throw new AppError(404, "No movements found for this trailer.");

@@ -182,7 +182,7 @@ import { isTempKey, makeEntityFinalPrefix, deleteS3Objects, finalizeAssetWithCac
 
 import { ES3Folder, ES3Namespace } from "@/types/aws.types";
 import { EMovementType, type TMovement, type TAnglePhotos, type TDamageItem } from "@/types/movement.types";
-import { ETrailerStatus, ETrailerLoadState, type TTrailer } from "@/types/Trailer.types";
+import { ETrailerStatus, ETrailerLoadState, type TTrailer, ETrailerCondition } from "@/types/Trailer.types";
 import { EYardId } from "@/types/yard.types";
 import type { IFileAsset } from "@/types/shared.types";
 
@@ -521,6 +521,10 @@ export async function POST(req: NextRequest) {
       if (!trailerDoc.safetyInspectionExpiryDate || trailerDoc.safetyInspectionExpiryDate.getTime() !== nextExpiry.getTime()) {
         trailerDoc.safetyInspectionExpiryDate = nextExpiry;
       }
+
+      // condition from damages (empty => ACTIVE, at least one => DAMAGED)
+      const damageCount = Array.isArray(body.damages) ? body.damages.length : 0;
+      trailerDoc.condition = damageCount > 0 ? ETrailerCondition.DAMAGED : ETrailerCondition.ACTIVE;
 
       if (body.type === EMovementType.IN) {
         trailerDoc.status = ETrailerStatus.IN;

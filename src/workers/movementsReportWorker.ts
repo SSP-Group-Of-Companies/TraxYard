@@ -134,8 +134,11 @@ function buildMatchAndSearch(payload: any) {
     if (toUtcExcl) match.ts.$lt = toUtcExcl;
   }
 
-  if (payload.hasDamage === "true") match["damages.0"] = { $exists: true };
-  if (payload.newDamageOnly === "true") match["damages"] = { $elemMatch: { newDamage: true } };
+  const hasDamage = parseFlag(payload.hasDamage);
+  const newDamageOnly = parseFlag(payload.newDamageOnly);
+
+  if (hasDamage === true) match["damages.0"] = { $exists: true };
+  if (newDamageOnly === true) match["damages"] = { $elemMatch: { newDamage: true } };
 
   const rx = (q: string) => ({ $regex: q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" });
   const q = (payload.q || "").trim();
@@ -375,4 +378,9 @@ function keyJoin(...parts: Array<string | null | undefined>) {
     .filter((p) => typeof p === "string" && p.length > 0)
     .map((p) => trimSlashes(String(p)))
     .join("/");
+}
+function parseFlag(v: any): boolean | null {
+  if (v === true || v === "true" || v === 1 || v === "1") return true;
+  if (v === false || v === "false" || v === 0 || v === "0") return false;
+  return null;
 }

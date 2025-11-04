@@ -1,3 +1,4 @@
+// src/types/Trailer.types.ts
 import { EYardId } from "./yard.types";
 
 export enum ETrailerStatus {
