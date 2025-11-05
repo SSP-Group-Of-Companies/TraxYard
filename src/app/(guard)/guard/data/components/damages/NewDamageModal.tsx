@@ -42,7 +42,7 @@ export default function NewDamageModal({ open, onClose, onAdd }: { open: boolean
         <motion.div className="relative w-[min(720px,95vw)] bg-white rounded-xl shadow-xl ring-1 ring-black/10 p-4 sm:p-6" variants={modalAnimations.content as any}>
         <button aria-label="Close" className="absolute top-3 right-3 h-8 w-8 grid place-items-center rounded-full bg-white shadow ring-1 ring-black/10 hover:shadow-md" onClick={onClose}><X className="h-4 w-4" /></button>
         <div className="text-base font-semibold mb-3 text-center">New Damages</div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+        <div className="grid grid-cols-1 min-[520px]:grid-cols-2 gap-4 items-start">
           <div className="grid gap-3">
             <label className="text-sm">
             <span className="block text-xs font-medium text-gray-700 mb-1">Location:</span>

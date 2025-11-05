@@ -21,7 +21,7 @@ export default function CtpatSection({ onSubmit, submitting }: { onSubmit?: () =
         </div>
         <p className="text-sm text-gray-600 text-center mb-4">Confirm each C‑TPAT checklist item. All must be checked to submit.</p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 min-[520px]:grid-cols-2 gap-3">
           {Object.values(ECtpatItem).map((key) => (
             <label key={key as string} className={`flex items-center gap-2 rounded-md ring-1 px-3 py-2 bg-white ${(errors as any)?.ctpat?.[key] ? "ring-red-300" : "ring-black/10"}`}>
               <input type="checkbox" className="accent-[var(--color-green)]" checked={Boolean((ctpat as any)?.[key])} onChange={(e)=> setValue(`ctpat.${key}` as any, e.target.checked, { shouldDirty: true, shouldValidate: true })} />

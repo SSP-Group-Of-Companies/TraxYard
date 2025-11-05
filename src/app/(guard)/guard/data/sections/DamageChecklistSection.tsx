@@ -127,7 +127,7 @@ export default function DamageChecklistSection({
         </p>
 
         {/* Checklist */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 min-[520px]:grid-cols-2 gap-3">
           {Object.values(EDamageChecklistItem).map((key) => (
             <label
               key={key as string}

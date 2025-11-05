@@ -105,7 +105,7 @@ export default function PrimaryDetailsSection({ onNext, completed }: { onNext?: 
               </span>
             </legend>
 
-            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
+            <div className="mt-2 grid grid-cols-1 min-[520px]:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
               <TextField<TMovementForm>
                 control={control}
                 name="carrier.carrierName"
@@ -137,7 +137,7 @@ export default function PrimaryDetailsSection({ onNext, completed }: { onNext?: 
               </span>
             </legend>
 
-            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 md:gap-8">
+            <div className="mt-2 grid grid-cols-1 min-[520px]:grid-cols-2 gap-4 sm:gap-6 md:gap-8">
               <div className="min-w-0">
                 <DateField<TMovementForm>
                 control={control}
