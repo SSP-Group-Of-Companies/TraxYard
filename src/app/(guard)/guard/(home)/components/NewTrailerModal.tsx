@@ -46,7 +46,7 @@ export default function NewTrailerModal({ open, onClose, onContinue, presetTrail
   return (
     <AnimatePresence>
       {open && (
-        <motion.div className="fixed inset-0 z-[90] grid place-items-center" initial="initial" animate="animate" exit="exit" variants={modalAnimations.backdrop}>
+        <motion.div className="fixed inset-0 z-[95] grid place-items-center pt-[calc(var(--nav-height,56px)+env(safe-area-inset-top)+8px)] pb-6 overflow-y-auto" initial="initial" animate="animate" exit="exit" variants={modalAnimations.backdrop}>
           <motion.button className="absolute inset-0 bg-black/50" onClick={onClose} aria-label="Close" />
           <motion.div id="new-trailer-modal" className="relative w-[min(760px,95vw)] bg-white rounded-2xl shadow-xl ring-1 ring-black/10 p-5" variants={modalAnimations.content}>
             <button aria-label="Close" className="absolute top-3 right-3 h-8 w-8 grid place-items-center rounded-full bg-white shadow ring-1 ring-black/10 hover:shadow-md" onClick={onClose}><X className="h-4 w-4" /></button>
@@ -126,7 +126,7 @@ export default function NewTrailerModal({ open, onClose, onContinue, presetTrail
                 scrollToFirstInvalid(container as HTMLElement);
               })}
             >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 min-[520px]:grid-cols-2 gap-3">
                 <TextField control={control} name="trailerNumber" label="Trailer Number" required />
                 <TextField control={control} name="owner" label="Owner" required />
                 <TextField control={control} name="make" label="Make" required />
