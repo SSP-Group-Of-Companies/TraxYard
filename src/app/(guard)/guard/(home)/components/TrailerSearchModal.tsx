@@ -70,6 +70,11 @@ import Pager from "@/components/ui/Pager";
 import { useTrailerSearch } from "../hooks/useTrailerSearch";
 import { modalAnimations } from "@/lib/animations";
 import { refreshBus } from "@/lib/refresh/refreshBus";
+import { useYardStore } from "@/store/useYardStore";
+import PreflightWarnings from "./PreflightWarnings";
+import NewTrailerModal from "./NewTrailerModal";
+import { usePendingTrailer } from "@/store/usePendingTrailer";
+import { yards } from "@/data/yards";
 
 /**
  * Focus trap helper function
@@ -112,7 +117,6 @@ type Props = {
   mode: Mode;
   onClose: () => void;
   onContinue: (trailerNumber: string) => void;
-  onCreateNew?: () => void;
 };
 
 /**
@@ -153,8 +157,7 @@ export default function TrailerSearchModal({
   open,
   mode, 
   onClose,
-  onContinue, 
-  onCreateNew 
+  onContinue,
 }: Props) {
   // Refs for DOM manipulation and focus management
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -171,6 +174,16 @@ export default function TrailerSearchModal({
     enabled,
     query: "",
   });
+  const activeYardId = useYardStore(s => s.yardId);
+  const [blockOpen, setBlockOpen] = useState(false);
+  const [blockMsg, setBlockMsg] = useState<string>("");
+  const yardNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const y of yards) m.set(y.id as unknown as string, y.name);
+    return m;
+  }, []);
+  const setPending = usePendingTrailer(s => s.set);
+  const [newOpen, setNewOpen] = useState(false);
 
   // Focus management and accessibility setup
   useEffect(() => {
@@ -415,11 +428,11 @@ export default function TrailerSearchModal({
               </div>
 
               {/* New Trailer CTA */}
-              {typed.trim() && statusLabel?.kind === "new" && onCreateNew && (
+              {typed.trim() && statusLabel?.kind === "new" && (
                 <div className="mb-3">
                   <button
                     type="button"
-                    onClick={onCreateNew}
+                    onClick={() => setNewOpen(true)}
                     className="button-base button-solid"
                     style={{ background: "var(--color-green)" }}
                   >
@@ -494,10 +507,40 @@ export default function TrailerSearchModal({
                             tabIndex={0}
                             role="button"
                             aria-label={`Select trailer ${trailer.trailerNumber}`}
-                            onClick={() => { onContinue(trailer.trailerNumber); }}
+                            onClick={() => {
+                              const trailerYard = (trailer as any).yardId as string | undefined;
+                              const status = (trailer as any).status as string | undefined;
+                              if (status === "IN" && trailerYard && trailerYard !== activeYardId) {
+                                setBlockMsg("This trailer is IN at a different yard. Switch your active yard to proceed.");
+                                setBlockOpen(true);
+                                return;
+                              }
+                              if (mode !== "INSPECTION") {
+                                if ((mode === "IN" && status === "IN") || (mode === "OUT" && status === "OUT")) {
+                                  setBlockMsg(`The last movement for this trailer is ${status}. The next movement must be ${status === "IN" ? "OUT" : "IN"}.`);
+                                  setBlockOpen(true);
+                                  return;
+                                }
+                              }
+                              onContinue(trailer.trailerNumber);
+                            }}
                             onKeyDown={(e) => {
                               if (e.key === "Enter" || e.key === " ") {
                                 e.preventDefault();
+                                const trailerYard = (trailer as any).yardId as string | undefined;
+                                const status = (trailer as any).status as string | undefined;
+                                if (status === "IN" && trailerYard && trailerYard !== activeYardId) {
+                                  setBlockMsg("This trailer is IN at a different yard. Switch your active yard to proceed.");
+                                  setBlockOpen(true);
+                                  return;
+                                }
+                                if (mode !== "INSPECTION") {
+                                  if ((mode === "IN" && status === "IN") || (mode === "OUT" && status === "OUT")) {
+                                    setBlockMsg(`The last movement for this trailer is ${status}. The next movement must be ${status === "IN" ? "OUT" : "IN"}.`);
+                                    setBlockOpen(true);
+                                    return;
+                                  }
+                                }
                                 onContinue(trailer.trailerNumber);
                               }
                             }}
@@ -521,19 +564,26 @@ export default function TrailerSearchModal({
                               {trailer.owner ?? "—"}
                             </td>
                             <td className="px-3 py-3">
-                              <span
-                                className="px-2 py-1 rounded-full text-xs font-semibold"
-                                style={{
-                                  background: trailer.status === "IN"
-                                    ? "color-mix(in oklab,var(--color-green) 18%, transparent)"
-                                    : "color-mix(in oklab,var(--color-blue) 18%, transparent)",
-                                  color: trailer.status === "IN" 
-                                    ? "var(--color-green)" 
-                                    : "var(--color-blue)",
-                                }}
-                              >
-                                {trailer.status ?? "—"}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className="px-2 py-1 rounded-full text-xs font-semibold"
+                                  style={{
+                                    background: trailer.status === "IN"
+                                      ? "color-mix(in oklab,var(--color-green) 18%, transparent)"
+                                      : "color-mix(in oklab,var(--color-blue) 18%, transparent)",
+                                    color: trailer.status === "IN" 
+                                      ? "var(--color-green)" 
+                                      : "var(--color-blue)",
+                                  }}
+                                >
+                                  {trailer.status ?? "—"}
+                                </span>
+                                {(() => {
+                                  const lastYardId = (trailer as any).lastMoveIo?.yardId || (trailer as any).yardId;
+                                  const name = lastYardId ? yardNameById.get(lastYardId as string) : undefined;
+                                  return name ? <span className="text-xs text-gray-600 truncate max-w-[10rem]">{name}</span> : null;
+                                })()}
+                              </div>
                             </td>
                           </tr>
                         );
@@ -549,6 +599,29 @@ export default function TrailerSearchModal({
                 Selecting a trailer may show an info warning if safety inspection is expired or the trailer is reported damaged.
               </p>
     </div>
+    {/* Blocking info modal for yard/movement mismatch */}
+    <PreflightWarnings
+      open={blockOpen}
+      onClose={() => setBlockOpen(false)}
+      onContinue={() => setBlockOpen(false)}
+      showInspection={true}
+      customInspectionText={blockMsg}
+      showDamaged={false}
+      title="Action not allowed"
+      continueText="OK"
+      hideCancel
+    />
+    <NewTrailerModal
+      open={newOpen}
+      onClose={() => setNewOpen(false)}
+      onContinue={(t) => {
+        setPending(t);
+        setNewOpen(false);
+        onClose();
+        onContinue(t.trailerNumber);
+      }}
+      presetTrailerNumber={typed.trim() || undefined}
+    />
           </motion.div>
         </motion.div>
       )}

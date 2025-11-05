@@ -2,6 +2,7 @@
 
 import { ReactNode } from "react";
 import GlobalLoader from "@/app/components/shared/GlobalLoader";
+import GlobalNotice from "@/app/components/shared/GlobalNotice";
 import { useNavigationLoadingSmart } from "@/hooks/useNavigationLoadingSmart";
 
 type Props = { children: ReactNode };
@@ -12,6 +13,7 @@ export default function GlobalLayoutWrapper({ children }: Props) {
   return (
     <>
       <GlobalLoader />
+      <GlobalNotice />
       {children}
     </>
   );

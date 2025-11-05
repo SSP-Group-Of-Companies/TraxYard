@@ -20,6 +20,11 @@ const TireSpecSchema = z
     if (spec.psi === undefined) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["psi"], message: "PSI is required." });
     }
+    if (typeof spec.psi === "number") {
+      if (spec.psi < 0 || spec.psi > 200) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["psi"], message: "PSI must be between 0 and 200." });
+      }
+    }
     if (spec.condition === undefined) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["condition"], message: "Condition is required." });
     }

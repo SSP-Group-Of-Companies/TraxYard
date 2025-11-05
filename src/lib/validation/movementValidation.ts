@@ -154,7 +154,9 @@ function validateTrailerReference(body: any) {
     vNumber(t.year, "trailer.year");
     vAssert(t.year >= 1900 && t.year <= 9999, "trailer.year must be between 1900 and 9999");
 
-    if (t.vin != null) vString(t.vin, "trailer.vin");
+    // VIN is optional; treat empty string as missing
+    const vin = (t.vin == null ? undefined : String(t.vin).trim()) || undefined;
+    if (vin != null) vString(vin, "trailer.vin");
     vString(t.licensePlate, "trailer.licensePlate");
     vString(t.stateOrProvince, "trailer.stateOrProvince");
     vOneOf(t.trailerType, "trailer.trailerType", Object.values(ETrailerType) as readonly string[]);

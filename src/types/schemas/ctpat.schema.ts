@@ -23,6 +23,13 @@ export const CtpatSchema = z.object({
   [ECtpatItem.TRAILER_CHASSIS]: z.boolean(),
   [ECtpatItem.INTERNAL_TRACTOR_WALLS]: z.boolean(),
   [ECtpatItem.AGRICULTURE]: z.boolean(),
+}).superRefine((obj, ctx) => {
+  // Require all items to be true
+  (Object.values(ECtpatItem) as string[]).forEach((k) => {
+    if (!(obj as any)?.[k]) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [k], message: "Please confirm this item." });
+    }
+  });
 });
 
 export type TCtpatZ = z.infer<typeof CtpatSchema>;

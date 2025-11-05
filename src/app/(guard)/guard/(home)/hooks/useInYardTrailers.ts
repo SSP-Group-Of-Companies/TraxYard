@@ -12,6 +12,7 @@ import { mapTrailerDto } from "@/lib/mappers/mapTrailerDto";
 import { apiFetch } from "@/lib/api/apiFetch";
 import { TrailerDtoSchema } from "@/types/schemas/trailers.schema";
 import { extractTrailersAndMeta } from "@/lib/api/normalize";
+import { handleApiError } from "@/lib/api/handleApiError";
 
 type Meta = {
   page: number;
@@ -163,6 +164,7 @@ export function useInYardTrailers(
           }
         }
         setError(err as Error);
+        handleApiError(err, { retry: () => load() });
       } finally {
         if (abortRef.current === ac) setLoading(false);
       }

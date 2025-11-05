@@ -13,10 +13,11 @@ type Props = {
   title?: string;
   customInspectionText?: string;
   continueText?: string;
+  hideCancel?: boolean;
 };
 
 export default function PreflightWarnings({
-  open, onClose, onContinue, showInspection, showDamaged, title = "Heads up", customInspectionText, continueText = "Continue"
+  open, onClose, onContinue, showInspection, showDamaged, title = "Heads up", customInspectionText, continueText = "Continue", hideCancel
 }: Props) {
   const hasAny = showInspection || showDamaged;
 
@@ -62,7 +63,7 @@ export default function PreflightWarnings({
             )}
 
             <div className="mt-4 flex justify-end gap-2">
-              <button className="button-base" onClick={onClose}>Cancel</button>
+              {!hideCancel && (<button className="button-base" onClick={onClose}>Cancel</button>)}
               <button className="button-base button-solid" style={{ background: "var(--color-blue)" }} onClick={onContinue}>
                 {continueText}
               </button>

@@ -41,6 +41,8 @@ import { useYardStore } from "@/store/useYardStore";
 import { useGuardDashboard } from "../hooks/useGuardDashboard";
 import { usePreflightTrailer } from "../hooks/usePreflightTrailer";
 import { useGuardFlowStore } from "@/store/useGuardFlowStore";
+import { useSmartGlobalLoading } from "@/hooks/useSmartGlobalLoading";
+import { usePendingTrailer } from "@/store/usePendingTrailer";
 
 import ActionButtons from "./ActionButtons";
 import DailyCounts from "./DailyCounts";
@@ -54,6 +56,8 @@ export default function HomeClient() {
   const { yardId } = useYardStore();
   const { data: session } = useSession();
   const router = useRouter();
+  const { begin: beginNavLoader } = useSmartGlobalLoading();
+  const clearPending = usePendingTrailer((s) => s.clear);
 
   const { data, isLoading } = useGuardDashboard(yardId);
   const [mode, setMode] = useState<"IN" | "OUT" | "INSPECTION" | null>(null);
@@ -168,21 +172,14 @@ export default function HomeClient() {
             },
           });
           setMode(null);
+          // Ensure we don't carry a pending new trailer into an existing trailer flow
+          if (res.exists) clearPending();
+          beginNavLoader();
           router.push(
             `/guard/data?mode=${mode}&trailer=${encodeURIComponent(
               trailerNumber
             )}`
           );
-        }}
-        onCreateNew={() => {
-          if (!mode) return;
-          setSelection({
-            mode,
-            trailerNumber: "",
-            flags: { inspectionExpired: false, damaged: false },
-          });
-          setMode(null);
-          router.push(`/guard/data?mode=${mode}&new=1`);
         }}
       />
 
@@ -200,6 +197,9 @@ export default function HomeClient() {
           });
           setWarn((v) => ({ ...v, open: false }));
           setMode(null);
+          // Existing trailer flow: prevent stale pending trailer prefill on the data page
+          clearPending();
+          beginNavLoader();
           router.push(
             `/guard/data?mode=${warn.mode}&trailer=${encodeURIComponent(
               warn.trailer

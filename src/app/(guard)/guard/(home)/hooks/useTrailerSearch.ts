@@ -74,6 +74,7 @@ import { extractTrailersAndMeta } from "@/lib/api/normalize";
 import { TrailerDtoSchema } from "@/types/schemas/trailers.schema";
 import type { TTrailerDto, TTrailerUI } from "@/types/frontend/trailer.dto";
 import { mapTrailerDto } from "@/lib/mappers/mapTrailerDto";
+import { handleApiError } from "@/lib/api/handleApiError";
 
 /**
  * Pagination metadata for search results
@@ -304,6 +305,7 @@ export function useTrailerSearch(opts?: UseTrailerSearchOptions): UseTrailerSear
         // Only set error if it's not an abort error (expected during cancellation)
         if (err?.name !== "AbortError") {
           setError(err);
+          handleApiError(err, { retry: () => load() });
         }
       } finally {
         // Only update loading state if this is still the current request
