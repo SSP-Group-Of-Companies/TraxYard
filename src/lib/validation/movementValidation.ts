@@ -180,12 +180,8 @@ export function validateMovementPayload(body: any) {
   // Trailer reference: accept trailerId OR trailer object
   validateTrailerReference(body);
 
-  // Yard requirement: only for IN/OUT; optional (but validated) for INSPECTION
-  if (body.type === EMovementType.IN || body.type === EMovementType.OUT) {
-    vAssert(isValidYardId(body.yardId), "Invalid or missing yardId");
-  } else if (body.yardId != null) {
-    vAssert(isValidYardId(body.yardId), "Invalid yardId");
-  }
+  // Yard requirement: always required (IN, OUT, INSPECTION)
+  vAssert(isValidYardId(body.yardId), "Invalid or missing yardId");
 
   // Optional timestamp (server has default)
   if (body.ts != null) {

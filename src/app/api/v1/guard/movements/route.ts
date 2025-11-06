@@ -49,9 +49,8 @@
  *   - damages?: array of { location: string, type: string, newDamage: boolean,
  *                photo: FileAsset (TEMP key ok), comment?: string }
  *   - ctpat:    object (presence required)
- *
- * For type = "IN" or "OUT":
- *   - yardId: "YARD1" | "YARD2" | "YARD3" (required)
+//   - yardId: "YARD1" | "YARD2" | "YARD3" (required; for OUT/INSPECTION when the trailer is currently IN,
+//     the provided yardId must match the trailer's current yard)
  *
  * Trailer Reference
  * -----------------
@@ -402,7 +401,7 @@ export async function POST(req: NextRequest) {
     validateMovementPayload(body);
 
     // Yard capacity sanity
-    if (body.type === EMovementType.IN || body.type === EMovementType.OUT) {
+    if (body.type === EMovementType.IN) {
       const yardCap = yardCapacityOf(body.yardId);
       assert(typeof yardCap === "number" && yardCap > 0, "Yard capacity not found");
     }
@@ -453,6 +452,20 @@ export async function POST(req: NextRequest) {
     // Load the (possibly existing) trailer state
     const trailerDoc = await Trailer.findById(trailerId);
     assert(trailerDoc, "Trailer not found", 404);
+
+    // Enforce yard match for OUT/INSPECTION when the existing trailer is currently IN.
+    // - If the trailer is IN, you can only perform OUT/INSPECTION from the same yard.
+    // - If the trailer is OUT, there is no yard restriction here (and OUT will be blocked below anyway).
+    if (!createdTrailerId && (body.type === EMovementType.OUT || body.type === EMovementType.INSPECTION)) {
+      if (trailerDoc.status === ETrailerStatus.IN) {
+        // Trailer is IN: yardId must be provided (it is always required by validation)
+        // and must match trailer's current yard.
+        const trailerYard = trailerDoc.yardId?.toString();
+        const reqYard = (body.yardId as EYardId)?.toString();
+        assert(trailerYard && reqYard && trailerYard === reqYard, `yardId must match the trailer's current yard (${trailerYard}) for ${body.type}.`);
+      }
+      // Trailer is OUT: no yard match restriction (any valid yardId is acceptable).
+    }
 
     // Capacity & logical flow checks
     const isNewTrailer = !!createdTrailerId;
