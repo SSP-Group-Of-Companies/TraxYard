@@ -1,5 +1,5 @@
 // src/models/Movement.model.ts
-import { Schema, model, models, type Model, type HydratedDocument, SchemaDefinitionProperty } from "mongoose";
+import { Schema, model, models, type Model, type HydratedDocument } from "mongoose";
 
 import {
   TMovement,
@@ -253,14 +253,9 @@ const MovementSchema = new Schema<TMovement>(
         values: Object.values(EYardId) as string[],
         message: enumMsg("yardId", Object.values(EYardId) as string[]),
       },
-      required: [
-        function (this: TMovementDoc) {
-          return this.type === EMovementType.IN || this.type === EMovementType.OUT;
-        },
-        "yardId is required when movement type is IN or OUT.",
-      ],
+      required: [true, "yardId is required for all movement types."],
       // index handled via compound/partial indexes section
-    } as SchemaDefinitionProperty<EYardId | undefined>,
+    },
 
     ts: {
       type: Date,
