@@ -50,7 +50,7 @@ export function useNavigationLoadingSmart() {
     };
     document.addEventListener("click", onClick, { capture: true });
     return () => document.removeEventListener("click", onClick, { capture: true } as any);
-  }, [begin]);
+  }, [begin, end]);
 
   // End loader when pathname changes
   useEffect(() => {

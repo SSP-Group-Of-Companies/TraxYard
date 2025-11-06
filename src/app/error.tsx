@@ -11,7 +11,7 @@ export default function GlobalRouteError({ error, reset }: { error: Error & { di
     console.error("Route error:", error);
     // Ensure any in-flight navigation loader is dismissed
     end();
-  }, [error]);
+  }, [error, end]);
 
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-6 text-center">
