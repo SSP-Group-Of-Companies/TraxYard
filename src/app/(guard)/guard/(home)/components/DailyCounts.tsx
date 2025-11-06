@@ -17,7 +17,7 @@ function Card({
   label: string;
   value: number | null;
   icon: ReactNode;
-  tint: string; // hex
+  tint: string; // hexa
 }) {
   return (
     <div
@@ -37,7 +37,10 @@ function Card({
 
         <div
           className="grid h-9 w-9 place-items-center rounded-xl shrink-0"
-          style={{ backgroundColor: "color-mix(in oklab, currentColor 10%, transparent)" }}
+          style={{
+            backgroundColor:
+              "color-mix(in oklab, currentColor 10%, transparent)",
+          }}
         >
           {icon}
         </div>
