@@ -1,6 +1,15 @@
+"use client";
+
 import Link from "next/link";
+import { useSmartGlobalLoading } from "@/hooks/useSmartGlobalLoading";
+import { useEffect } from "react";
 
 export default function NotFound() {
+  const { end } = useSmartGlobalLoading();
+  useEffect(() => {
+    // Ensure loader isn't left visible when navigating to a missing route
+    end();
+  }, []);
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-6 text-center">
       <div className="max-w-lg">

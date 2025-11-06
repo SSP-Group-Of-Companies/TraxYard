@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect } from "react";
+import { useSmartGlobalLoading } from "@/hooks/useSmartGlobalLoading";
 import Link from "next/link";
 
 export default function GlobalRouteError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  const { end } = useSmartGlobalLoading();
   useEffect(() => {
     // Optional: log for observability (can be wired to Sentry here)
     console.error("Route error:", error);
+    // Ensure any in-flight navigation loader is dismissed
+    end();
   }, [error]);
 
   return (
