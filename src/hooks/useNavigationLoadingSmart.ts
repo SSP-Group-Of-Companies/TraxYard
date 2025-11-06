@@ -14,6 +14,13 @@ export function useNavigationLoadingSmart() {
   const pathname = usePathname();
   const prevPath = useRef(pathname);
   const { begin, end } = useSmartGlobalLoading();
+  const watchdogTimer = useRef<number | null>(null);
+  const clearWatchdog = () => {
+    if (watchdogTimer.current != null) {
+      window.clearTimeout(watchdogTimer.current);
+      watchdogTimer.current = null;
+    }
+  };
 
   // Intercept internal link clicks to begin loader
   useEffect(() => {
@@ -34,6 +41,12 @@ export function useNavigationLoadingSmart() {
       if (url.pathname === window.location.pathname && url.search === window.location.search) return;
       // Internal navigation -> begin loader
       begin();
+      // Watchdog: in case the route doesn't commit (error/prevented), auto-end
+      clearWatchdog();
+      watchdogTimer.current = window.setTimeout(() => {
+        end();
+        watchdogTimer.current = null;
+      }, 5000); // 5s safety cap
     };
     document.addEventListener("click", onClick, { capture: true });
     return () => document.removeEventListener("click", onClick, { capture: true } as any);
@@ -43,9 +56,22 @@ export function useNavigationLoadingSmart() {
   useEffect(() => {
     if (pathname !== prevPath.current) {
       prevPath.current = pathname;
+      clearWatchdog();
       end();
     }
   }, [pathname, end]);
+
+  // Defensive: stop loader if tab becomes hidden (navigation cancelled)
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === "hidden") {
+        clearWatchdog();
+        end();
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [end]);
 }
 
 

@@ -398,7 +398,23 @@ export default function TrailerSearchModal({
                         const query = typed.trim();
                         if (query) {
                           const match = rows.find(row => row.trailerNumber === query);
-                          if (match) { onContinue(match.trailerNumber); }
+                          if (match) {
+                            const trailerYard = (match as any).yardId as string | undefined;
+                            const status = (match as any).status as string | undefined;
+                            if (status === "IN" && trailerYard && trailerYard !== activeYardId) {
+                              setBlockMsg("This trailer is IN at a different yard. Switch your active yard to proceed.");
+                              setBlockOpen(true);
+                              return;
+                            }
+                            if (mode !== "INSPECTION") {
+                              if ((mode === "IN" && status === "IN") || (mode === "OUT" && status === "OUT")) {
+                                setBlockMsg(`The last movement for this trailer is ${status}. The next movement must be ${status === "IN" ? "OUT" : "IN"}.`);
+                                setBlockOpen(true);
+                                return;
+                              }
+                            }
+                            onContinue(match.trailerNumber);
+                          }
                         }
                       }
                     }}

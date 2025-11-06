@@ -60,10 +60,9 @@ export default function YardSwitcher({ variant = "full", className }: Props) {
             role="listbox"
             className="absolute right-0 z-[60] mt-2 w-64 overflow-hidden rounded-2xl shadow-[var(--shadow-2)]"
             style={{
-              backgroundColor: "rgba(255, 255, 255, 0.95)",
-              backdropFilter: "blur(8px)",
+              backgroundColor: "white",
               border: "1px solid var(--color-outline)",
-              boxShadow: "var(--shadow-2), 0 0 0 1px rgba(255, 255, 255, 0.8)",
+              boxShadow: "var(--shadow-2)",
             }}
             variants={modalVariants}
             initial="initial"
@@ -79,8 +78,8 @@ export default function YardSwitcher({ variant = "full", className }: Props) {
                 setYardId(y.id as EYardId);
                 setOpen(false);
               }}
-              className={`block w-full px-3 py-2 text-left text-sm hover:bg-gray-100 active:bg-gray-200 transition-colors ${
-                y.id === yardId ? "bg-gray-100" : ""
+              className={`block w-full px-3 py-2 text-left text-sm transition-colors rounded-md ${
+                y.id === yardId ? "bg-[var(--color-green-hover)]" : "hover:bg-[var(--color-green-hover)] active:bg-[var(--color-green-hover)]"
               }`}
               variants={fadeInVariants}
               initial="initial"
