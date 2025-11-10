@@ -40,6 +40,12 @@ export default function ThemedSelect({ value, onChange, options, getLabel = (v) 
     el?.scrollIntoView({ block: "nearest" });
   }, [activeIndex, open, listId]);
 
+  // Close dropdown if value changes externally (safety for edge cases)
+  React.useEffect(() => {
+    if (open) setOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
   function onKeyDown(e: React.KeyboardEvent<HTMLButtonElement>) {
     if (!open && (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ")) {
       setOpen(true);
@@ -97,8 +103,12 @@ export default function ThemedSelect({ value, onChange, options, getLabel = (v) 
                 i === activeIndex ? "bg-[var(--color-green-hover)]" : "hover:bg-[var(--color-green-hover)]",
               ].join(" ")}
               onMouseEnter={() => setActiveIndex(i)}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => { onChange(opt); setOpen(false); }}
+              onMouseDown={(e) => {
+                // Prevent focus from jumping back to the button and select immediately
+                e.preventDefault();
+                onChange(opt);
+                setOpen(false);
+              }}
             >
               {opt === "" ? placeholderLabel : getLabel(opt)}
             </li>

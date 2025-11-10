@@ -31,7 +31,7 @@ export default function TiresSection({
     clearErrors,
     formState: { errors },
   } = useFormContext<TMovementForm>();
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, insert } = useFieldArray({
     control,
     name: "axles" as const,
   });
@@ -39,7 +39,6 @@ export default function TiresSection({
   const axles = (watch("axles") ?? []) as NonNullable<TMovementForm["axles"]>;
 
   const canAdd = fields.length < 6;
-  const canRemove = fields.length > 2;
 
   async function onPick(axleIdx: number, side: SideKey, file: File | null) {
     if (!file) return;
@@ -102,7 +101,7 @@ export default function TiresSection({
   function addAxle() {
     if (!canAdd) return;
     const axleNumber = fields.length + 1;
-    append({
+    const newAxle = {
       axleNumber,
       type: EAxleType.DUAL,
       left: {
@@ -131,7 +130,14 @@ export default function TiresSection({
           condition: undefined as any,
         },
       },
-    } as any);
+    } as any;
+
+    // Always insert as a middle axle (just before the rear-most)
+    if (fields.length >= 2) {
+      insert(fields.length - 1, newAxle);
+    } else {
+      append(newAxle);
+    }
     setTimeout(renumberAxles, 0);
   }
 
@@ -189,13 +195,12 @@ export default function TiresSection({
       id="tires-section"
       className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
     >
-      <div className="rounded-2xl bg-white/80 shadow-sm p-4 sm:p-6 lg:p-8">
+      <div className="rounded-2xl bg-white/80 shadow-sm p-4 sm:p-6 lg:p-8 relative pb-16 lg:pb-24">
         <div className="flex items-center justify-center mb-2">
           <h2 className="text-lg font-semibold text-center">Axles & Tires</h2>
         </div>
         <p className="text-sm text-gray-600 text-center mb-4">
-          Capture axle photos and tire specs. Default shows two axles; add up to
-          six.
+          Axle 1 is the <span className="font-medium">front-most</span>; the last axle is the <span className="font-medium">rear-most</span>. Any added axles are placed <span className="font-medium">in the middle</span>. You can add up to six total.
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -209,7 +214,22 @@ export default function TiresSection({
                 className="rounded-xl bg-white/70 shadow-sm ring-1 ring-black/5 p-3 sm:p-4"
               >
                 <div className="flex items-center justify-between mb-3">
-                  <div className="text-sm font-semibold">Axle {axIdx + 1}</div>
+                  <div className="text-sm font-semibold flex items-center gap-2">
+                    <span>Axle {axIdx + 1}</span>
+                    {axIdx === 0 ? (
+                      <span className="inline-flex items-center rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 text-[11px]">
+                        Front-most
+                      </span>
+                    ) : axIdx === fields.length - 1 ? (
+                      <span className="inline-flex items-center rounded-full bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 text-[11px]">
+                        Rear-most
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-gray-50 text-gray-600 border border-gray-200 px-2 py-0.5 text-[11px]">
+                        Middle
+                      </span>
+                    )}
+                  </div>
                   <div className="w-56">
                     <SegmentedControl<string>
                       value={isDual ? "DUAL" : "SINGLE"}
@@ -567,10 +587,11 @@ export default function TiresSection({
                 </div>
 
                 <div className="mt-3 flex items-center justify-between">
-                  {canRemove && (
+                  {/* Only allow removing middle axles to preserve front/rear anchors */}
+                  {fields.length > 2 && axIdx !== 0 && axIdx !== fields.length - 1 && (
                     <button
                       type="button"
-                      className="text-sm text-red-600 hover:underline"
+                      className="rounded-md border border-red-200 bg-red-50 text-red-700 px-3 py-1.5 text-sm font-medium hover:bg-red-100 transition-colors"
                       onClick={() => {
                         remove(axIdx);
                         setTimeout(renumberAxles, 0);
@@ -583,9 +604,9 @@ export default function TiresSection({
                     <button
                       type="button"
                       onClick={addAxle}
-                      className="rounded-md bg-[var(--color-primary-action)] text-gray-800 px-4 py-2 text-sm font-medium hover:bg-[var(--color-primary-action-hover)] transition-colors shadow-sm"
+                      className="lg:hidden rounded-md bg-[var(--color-primary-action)] text-gray-800 px-4 py-2 text-sm font-medium hover:bg-[var(--color-primary-action-hover)] transition-colors shadow-sm"
                     >
-                      + Add another axle
+                      + Add middle axle
                     </button>
                   )}
                 </div>
@@ -593,7 +614,8 @@ export default function TiresSection({
             );
           })}
           {/* Section navigation control */}
-          <div className="mt-6 lg:mt-8 flex justify-end">
+          {/* Flow controls for small screens (in-flow) */}
+          <div className="mt-6 lg:mt-8 flex justify-end lg:hidden">
             <button
               type="button"
               onClick={() => {
@@ -613,6 +635,38 @@ export default function TiresSection({
               title="Continue"
             >
               <ArrowDownToDot className="h-6 w-6" />
+            </button>
+          </div>
+
+          {/* Bottom-center controls for desktop (scoped to Tires section only) */}
+          <div className="hidden lg:flex absolute bottom-6 left-1/2 -translate-x-1/2 items-center gap-3 z-[10]">
+            <button
+              type="button"
+              onClick={() => {
+                if (validateTiresSection()) {
+                  onNext?.();
+                } else {
+                  const sectionEl = document.getElementById("tires-section");
+                  if (sectionEl) scrollToFirstInvalid(sectionEl as HTMLElement);
+                }
+              }}
+              className={`inline-flex h-12 w-12 items-center justify-center rounded-full bg-white text-gray-700 shadow-md hover:shadow-lg transition-transform focus:outline-none focus:ring-2 focus:ring-[var(--color-green)] focus:ring-offset-2 ${
+                completed
+                  ? "opacity-50"
+                  : "hover:scale-[1.03] active:scale-[.98]"
+              }`}
+              aria-label="Continue to next section"
+              title="Continue"
+            >
+              <ArrowDownToDot className="h-6 w-6" />
+            </button>
+            <button
+              type="button"
+              onClick={addAxle}
+              disabled={!canAdd}
+              className="rounded-md bg-[var(--color-primary-action)] text-gray-800 px-4 py-2 text-sm font-medium hover:bg-[var(--color-primary-action-hover)] transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              + Add middle axle
             </button>
           </div>
         </div>

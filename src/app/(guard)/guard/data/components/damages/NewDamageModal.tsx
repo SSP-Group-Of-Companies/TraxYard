@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { modalAnimations } from "@/lib/animations";
 import { X } from "lucide-react";
@@ -20,7 +20,31 @@ export default function NewDamageModal({ open, onClose, onAdd }: { open: boolean
   const [errs, setErrs] = useState<{ loc?: boolean; typ?: boolean }>({});
   const [photoErr, setPhotoErr] = useState(false);
 
+  // Reset state every time modal opens to avoid stale data
+  useEffect(() => {
+    if (open) {
+      setLoc("");
+      setTyp("");
+      setComment("");
+      setPhoto(null);
+      setErrs({});
+      setPhotoErr(false);
+      setBusy(false);
+    }
+  }, [open]);
+
   if (!open) return null;
+
+  function handleClose() {
+    // If a temp photo was uploaded but the user is closing without adding,
+    // clean it up to avoid orphaned files.
+    (async () => {
+      try {
+        if (photo) await deleteTempFile(photo);
+      } catch {}
+    })();
+    onClose();
+  }
 
   async function pick(file: File | null) {
     if (!file) return;
@@ -38,9 +62,9 @@ export default function NewDamageModal({ open, onClose, onAdd }: { open: boolean
   return (
     <AnimatePresence>
       <motion.div className="fixed inset-0 z-[90] grid place-items-center" initial="initial" animate="animate" exit="exit">
-        <motion.button className="absolute inset-0 bg-black/50" onClick={onClose} aria-label="Close" variants={modalAnimations.backdrop as any} />
+        <motion.button className="absolute inset-0 bg-black/50" onClick={handleClose} aria-label="Close" variants={modalAnimations.backdrop as any} />
         <motion.div className="relative w-[min(720px,95vw)] bg-white rounded-xl shadow-xl ring-1 ring-black/10 p-4 sm:p-6" variants={modalAnimations.content as any}>
-        <button aria-label="Close" className="absolute top-3 right-3 h-8 w-8 grid place-items-center rounded-full bg-white shadow ring-1 ring-black/10 hover:shadow-md" onClick={onClose}><X className="h-4 w-4" /></button>
+        <button aria-label="Close" className="absolute top-3 right-3 h-8 w-8 grid place-items-center rounded-full bg-white shadow ring-1 ring-black/10 hover:shadow-md" onClick={handleClose}><X className="h-4 w-4" /></button>
         <div className="text-base font-semibold mb-3 text-center">New Damages</div>
         <div className="grid grid-cols-1 min-[520px]:grid-cols-2 gap-4 items-start">
           <div className="grid gap-3">
