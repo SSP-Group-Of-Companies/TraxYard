@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import SessionWrapper from "./components/SessionWrapper";
@@ -112,7 +113,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[${SURFACE}] text-[${BRAND_PRIMARY}] min-h-dvh`}
       >
         <SessionWrapper>
-          <GlobalLayoutWrapper>{children}</GlobalLayoutWrapper>
+          <Suspense fallback={null}>
+            <GlobalLayoutWrapper>{children}</GlobalLayoutWrapper>
+          </Suspense>
         </SessionWrapper>
       </body>
     </html>

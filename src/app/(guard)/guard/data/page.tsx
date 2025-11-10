@@ -24,13 +24,14 @@ import { TiresFormSchema } from "@/types/schemas/tires.schema";
 import { DamagesFormSchema } from "@/types/schemas/damages.schema";
 import { CtpatSchema } from "@/types/schemas/ctpat.schema";
 import { useYardStore } from "@/store/useYardStore";
-import { useGlobalLoading } from "@/store/useGlobalLoading";
 import { useRouter } from "next/navigation";
 import { usePendingTrailer } from "@/store/usePendingTrailer";
 import { apiFetch } from "@/lib/api/apiFetch";
 import { handleApiError } from "@/lib/api/handleApiError";
 import { EMovementType } from "@/types/movement.types";
 import { useSmartGlobalLoading } from "@/hooks/useSmartGlobalLoading";
+import DataContextBar from "./components/DataContextBar";
+import { yards } from "@/data/yards";
 
 export default function GuardDataPage() {
   const sp = useSearchParams();
@@ -149,13 +150,13 @@ export default function GuardDataPage() {
     id?: string | null;
     condition?: string | null;
   } | null>(null);
+  const [preflightInfo, setPreflightInfo] = useState<any | null>(null);
   const yardId = useYardStore((s) => s.yardId);
   const [submitting, setSubmitting] = useState(false);
-  const { show, hide } = useGlobalLoading();
   const router = useRouter();
   const pendingTrailer = usePendingTrailer((s) => s.pending);
   const clearPendingTrailer = usePendingTrailer((s) => s.clear);
-  const { end: endNavLoader } = useSmartGlobalLoading();
+  const { end: endNavLoader, begin: beginNavLoader } = useSmartGlobalLoading();
   useEffect(() => {
     // End any navigation loader once the data page mounts
     endNavLoader();
@@ -166,6 +167,7 @@ export default function GuardDataPage() {
       try {
         const res = await preflight(trailerNumber);
         const dto = res?.dto as any;
+        setPreflightInfo(dto ?? null);
         const dateLike = dto?.safetyInspectionExpiryDate as any;
         const trailerId = (dto?.id || dto?._id || dto?.trailerId) as
           | string
@@ -226,6 +228,12 @@ export default function GuardDataPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingTrailer?.safetyInspectionExpiryDate, preflightMeta?.id]);
+
+  const yardNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const y of yards) m.set(y.id as unknown as string, y.name);
+    return m;
+  }, []);
 
   const onSubmit = methods.handleSubmit((values) => {
     const payload = {
@@ -335,7 +343,6 @@ export default function GuardDataPage() {
             submitting={submitting}
             onSubmit={async () => {
               setSubmitting(true);
-              show("Submitting movement…");
               // Final submit: validate all sections and, if valid, POST
               const values = methods.getValues();
 
@@ -426,7 +433,6 @@ export default function GuardDataPage() {
                 requestAnimationFrame(() =>
                   scrollToFirstInvalid(containerRef.current as HTMLElement)
                 );
-                hide();
                 setSubmitting(false);
                 return;
               }
@@ -473,12 +479,12 @@ export default function GuardDataPage() {
                   headers: { "content-type": "application/json" },
                   body: JSON.stringify(payload),
                 });
-                hide();
                 setSubmitting(false);
                 clearPendingTrailer();
+                // Use navigation loader only for the route change UX
+                beginNavLoader();
                 router.replace("/guard");
               } catch (e: any) {
-                hide();
                 setSubmitting(false);
                 handleApiError(e, {
                   retry: async () => {
@@ -509,32 +515,57 @@ export default function GuardDataPage() {
     initialMode,
     yardId,
     submitting,
-    show,
-    hide,
     router,
     pendingTrailer,
     clearPendingTrailer,
+    beginNavLoader,
   ]);
 
   return (
     <FormProvider {...methods}>
-      <AnimatedPage>
-        <form onSubmit={onSubmit}>
-          <div ref={containerRef} className="px-4 py-6 sm:px-6">
-            <div className="space-y-8">
-              {sections.map((s) => (
-                <section key={s.id} id={s.id} className="scroll-mt-20">
-                  {s.node}
-                </section>
-              ))}
+      <div className="px-4 sm:px-6">
+        <DataContextBar
+          mode={initialMode as any}
+          trailerNumber={sp.get("trailer")}
+          badge={preflightMeta?.id ? "existing" : "new"}
+          owner={
+            (preflightInfo as any)?.owner ?? (pendingTrailer as any)?.owner ?? null
+          }
+          lastStatus={(preflightInfo as any)?.status ?? null}
+          lastYardName={(() => {
+            const lastYardId =
+              (preflightInfo as any)?.lastMoveIo?.yardId ||
+              (preflightInfo as any)?.yardId;
+            return lastYardId
+              ? yardNameById.get(lastYardId as unknown as string) ?? null
+              : null;
+          })()}
+          damaged={
+            (preflightMeta?.condition ?? (preflightInfo as any)?.condition) ===
+            "DAMAGED"
+          }
+          onChangeTrailer={() => {
+            router.replace("/guard");
+          }}
+        />
+        <AnimatedPage className="mt-6">
+          <form onSubmit={onSubmit}>
+            <div ref={containerRef} className="py-6">
+              <div className="space-y-8">
+                {sections.map((s) => (
+                  <section key={s.id} id={s.id} className="scroll-mt-20">
+                    {s.node}
+                  </section>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <button type="submit" className="hidden">
-            Submit
-          </button>
-        </form>
-      </AnimatedPage>
+            <button type="submit" className="hidden">
+              Submit
+            </button>
+          </form>
+        </AnimatedPage>
+      </div>
     </FormProvider>
   );
 }

@@ -157,7 +157,7 @@ export default function TrailerSearchModal({
   open,
   mode, 
   onClose,
-  onContinue,
+  onContinue, 
 }: Props) {
   // Refs for DOM manipulation and focus management
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -581,19 +581,19 @@ export default function TrailerSearchModal({
                             </td>
                             <td className="px-3 py-3">
                               <div className="flex items-center gap-2">
-                                <span
-                                  className="px-2 py-1 rounded-full text-xs font-semibold"
-                                  style={{
-                                    background: trailer.status === "IN"
-                                      ? "color-mix(in oklab,var(--color-green) 18%, transparent)"
-                                      : "color-mix(in oklab,var(--color-blue) 18%, transparent)",
-                                    color: trailer.status === "IN" 
-                                      ? "var(--color-green)" 
-                                      : "var(--color-blue)",
-                                  }}
-                                >
-                                  {trailer.status ?? "—"}
-                                </span>
+                              <span
+                                className="px-2 py-1 rounded-full text-xs font-semibold"
+                                style={{
+                                  background: trailer.status === "IN"
+                                    ? "color-mix(in oklab,var(--color-green) 18%, transparent)"
+                                    : "color-mix(in oklab,var(--color-blue) 18%, transparent)",
+                                  color: trailer.status === "IN" 
+                                    ? "var(--color-green)" 
+                                    : "var(--color-blue)",
+                                }}
+                              >
+                                {trailer.status ?? "—"}
+                              </span>
                                 {(() => {
                                   const lastYardId = (trailer as any).lastMoveIo?.yardId || (trailer as any).yardId;
                                   const name = lastYardId ? yardNameById.get(lastYardId as string) : undefined;

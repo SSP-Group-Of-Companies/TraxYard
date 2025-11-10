@@ -28,7 +28,7 @@
  */
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -56,7 +56,7 @@ export default function HomeClient() {
   const { yardId } = useYardStore();
   const { data: session } = useSession();
   const router = useRouter();
-  const { begin: beginNavLoader } = useSmartGlobalLoading();
+  const { begin: beginNavLoader, end: endNavLoader } = useSmartGlobalLoading();
   const clearPending = usePendingTrailer((s) => s.clear);
 
   const { data, isLoading } = useGuardDashboard(yardId);
@@ -78,6 +78,11 @@ export default function HomeClient() {
     if (h < 17) return "Good afternoon";
     return "Good evening";
   }, []);
+
+  // Defensive: ensure any navigation loader is ended when arriving on /guard
+  useEffect(() => {
+    endNavLoader();
+  }, [endNavLoader]);
 
   const firstName =
     (session?.user?.name?.trim().split(/\s+/)[0] as string | undefined) ?? "";

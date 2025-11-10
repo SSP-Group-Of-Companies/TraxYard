@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, AlertTriangle, Info, CheckCircle2 } from "lucide-react";
 import { modalAnimations } from "@/lib/animations";
@@ -7,6 +8,30 @@ import { useAppNotice } from "@/store/useAppNotice";
 
 export default function GlobalNotice() {
   const { current, hide } = useAppNotice();
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const lastFocusedRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!current) return;
+    // Save previously focused element and move focus into the dialog
+    lastFocusedRef.current = document.activeElement as HTMLElement | null;
+    // Defer to allow mount
+    const t = window.setTimeout(() => {
+      panelRef.current?.focus();
+    }, 0);
+    // Basic escape handling
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") hide();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      window.clearTimeout(t);
+      document.removeEventListener("keydown", onKey);
+      // Restore focus
+      lastFocusedRef.current?.focus?.();
+      lastFocusedRef.current = null;
+    };
+  }, [current, hide]);
 
   const iconByKind = {
     error: <AlertTriangle className="h-5 w-5 text-red-600" />,
@@ -31,7 +56,12 @@ export default function GlobalNotice() {
             onClick={hide}
           />
           <motion.div
-            className="relative w-[min(560px,92vw)] rounded-2xl bg-white shadow-xl ring-1 ring-black/10 p-5"
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="global-notice-title"
+            tabIndex={-1}
+            className="relative w-[min(560px,92vw)] rounded-2xl bg-white shadow-xl ring-1 ring-black/10 p-5 outline-none"
             variants={modalAnimations.content}
           >
             <button
@@ -45,7 +75,7 @@ export default function GlobalNotice() {
               <div className="mt-1">{iconByKind[current.kind]}</div>
               <div className="flex-1">
                 {current.title && (
-                  <h3 className="text-base font-semibold text-gray-900">
+                  <h3 id="global-notice-title" className="text-base font-semibold text-gray-900">
                     {current.title}
                   </h3>
                 )}

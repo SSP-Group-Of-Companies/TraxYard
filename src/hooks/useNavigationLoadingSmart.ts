@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useSmartGlobalLoading } from "@/hooks/useSmartGlobalLoading";
 
 /**
@@ -12,7 +12,10 @@ import { useSmartGlobalLoading } from "@/hooks/useSmartGlobalLoading";
  */
 export function useNavigationLoadingSmart() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const searchKey = searchParams?.toString() ?? "";
   const prevPath = useRef(pathname);
+  const prevSearch = useRef(searchKey);
   const { begin, end } = useSmartGlobalLoading();
   const watchdogTimer = useRef<number | null>(null);
   const clearWatchdog = () => {
@@ -54,12 +57,13 @@ export function useNavigationLoadingSmart() {
 
   // End loader when pathname changes
   useEffect(() => {
-    if (pathname !== prevPath.current) {
+    if (pathname !== prevPath.current || searchKey !== prevSearch.current) {
       prevPath.current = pathname;
+      prevSearch.current = searchKey;
       clearWatchdog();
       end();
     }
-  }, [pathname, end]);
+  }, [pathname, searchKey, end]);
 
   // Defensive: stop loader if tab becomes hidden (navigation cancelled)
   useEffect(() => {

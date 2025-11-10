@@ -60,6 +60,8 @@ type ApiFetchOptions = RequestInit & {
   retries?: number;
   /** Base delay for backoff in ms (default 250) */
   retryDelayMs?: number;
+  /** Optional request timeout in ms; when exceeded, the request is aborted */
+  requestTimeoutMs?: number;
 };
 
 /**
@@ -160,16 +162,48 @@ function sleep(ms: number) {
  * ```
  */
 export async function apiFetch<T>(url: string, init: ApiFetchOptions = {}): Promise<T> {
-  const { retries = 0, retryDelayMs = 250, ...rest } = init;
+  const { retries = 0, retryDelayMs = 250, requestTimeoutMs, ...rest } = init;
 
   let attempt = 0;
   while (true) {
     try {
+      // Compose an AbortController to support both caller-provided signal and timeout
+      const controller = new AbortController();
+      const providedSignal = rest.signal;
+      let timeoutId: number | null = null;
+
+      // If a timeout is provided, abort after the configured duration
+      if (typeof requestTimeoutMs === "number" && requestTimeoutMs > 0) {
+        timeoutId = window.setTimeout(() => {
+          controller.abort(new DOMException("Request timed out", "AbortError"));
+        }, requestTimeoutMs);
+      }
+
+      // If caller provided a signal, forward aborts
+      const onAbort = () => controller.abort((providedSignal as any)?.reason);
+      if (providedSignal) {
+        if (providedSignal.aborted) {
+          onAbort();
+        } else {
+          providedSignal.addEventListener("abort", onAbort, { once: true });
+        }
+      }
+
       const res = await fetch(url, {
         credentials: "include",
         cache: "no-store",
+        signal: controller.signal,
         ...rest,
       });
+
+      // Clear listeners/timers
+      if (providedSignal) {
+        providedSignal.removeEventListener("abort", onAbort as any);
+      }
+      if (timeoutId != null) {
+        window.clearTimeout(timeoutId);
+        timeoutId = null;
+      }
 
       const data = await parseSafeJson(res);
 

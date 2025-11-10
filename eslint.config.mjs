@@ -10,6 +10,17 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
+  // Ignore generated/build artifacts and vendor folders
+  {
+    ignores: [
+      "**/.next/**",
+      "**/node_modules/**",
+      "**/.turbo/**",
+      "next-env.d.ts",
+      "**/dist/**",
+      "**/coverage/**",
+    ],
+  },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
     rules: {
