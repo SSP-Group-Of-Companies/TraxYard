@@ -195,7 +195,7 @@ export default function TiresSection({
       id="tires-section"
       className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
     >
-      <div className="rounded-2xl bg-white/80 shadow-sm p-4 sm:p-6 lg:p-8 relative pb-16 lg:pb-24">
+		<div className="rounded-2xl bg-white/80 shadow-sm p-4 sm:p-6 lg:p-8 relative pb-24 lg:pb-28">
         <div className="flex items-center justify-center mb-2">
           <h2 className="text-lg font-semibold text-center">Axles & Tires</h2>
         </div>
@@ -600,46 +600,12 @@ export default function TiresSection({
                       Remove axle
                     </button>
                   )}
-                  {axIdx === fields.length - 1 && canAdd && (
-                    <button
-                      type="button"
-                      onClick={addAxle}
-                      className="lg:hidden rounded-md bg-[var(--color-primary-action)] text-gray-800 px-4 py-2 text-sm font-medium hover:bg-[var(--color-primary-action-hover)] transition-colors shadow-sm"
-                    >
-                      + Add middle axle
-                    </button>
-                  )}
                 </div>
               </div>
             );
           })}
-          {/* Section navigation control */}
-          {/* Flow controls for small screens (in-flow) */}
-          <div className="mt-6 lg:mt-8 flex justify-end lg:hidden">
-            <button
-              type="button"
-              onClick={() => {
-                if (validateTiresSection()) {
-                  onNext?.();
-                } else {
-                  const sectionEl = document.getElementById("tires-section");
-                  if (sectionEl) scrollToFirstInvalid(sectionEl as HTMLElement);
-                }
-              }}
-              className={`inline-flex h-12 w-12 items-center justify-center rounded-full bg-white text-gray-700 shadow-md hover:shadow-lg transition-transform focus:outline-none focus:ring-2 focus:ring-[var(--color-green)] focus:ring-offset-2 ${
-                completed
-                  ? "opacity-50"
-                  : "hover:scale-[1.03] active:scale-[.98]"
-              }`}
-              aria-label="Continue to next section"
-              title="Continue"
-            >
-              <ArrowDownToDot className="h-6 w-6" />
-            </button>
-          </div>
-
-          {/* Bottom-center controls for desktop (scoped to Tires section only) */}
-          <div className="hidden lg:flex absolute bottom-6 left-1/2 -translate-x-1/2 items-center gap-3 z-[10]">
+          {/* Bottom-center controls for all screen sizes (scoped to Tires section only) */}
+			<div className="flex absolute bottom-12 lg:bottom-6 left-1/2 -translate-x-1/2 items-center gap-3 z-[10]">
             <button
               type="button"
               onClick={() => {
